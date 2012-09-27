@@ -41,6 +41,37 @@ stemLengths =
     (layout-set-absolute-staff-size-in-module new-scope
       (* sz (eval 'pt new-scope))))))
 
-#(define set-color (lambda (color)
-                     #{
-                     #}))
+bottomBarNumbers = #(define-music-function (parser location extra-y-offset) (number?) #{
+		     \override Score.BarNumber #'break-visibility = #'#(#f #t #t)
+		     \set Score.barNumberVisibility = #(lambda (a b) #t)
+		     \set Score.barNumberFormatter = 
+		     #(lambda (bar-number measure-position alternative-number extra)
+		       (if (= 0 (ly:moment-main measure-position))
+			(markup "")
+			(markup #:fontsize 3 (number->string bar-number))))
+		     \override Score.BarNumber #'self-alignment-X = #CENTER
+		     \override Score.BarNumber #'direction = #DOWN
+		     \override Score.BarNumber #'outside-staff-priority = ##f
+		     \override Score.BarNumber #'extra-offset = $(cons 0 extra-y-offset)
+		     #})
+
+#(define (space duration)
+  (make-music
+   'SkipEvent
+   'duration
+   duration))
+
+#(define (half-duration duration)
+  (ly:make-duration 
+   (+ 1 (ly:duration-log duration)) 
+   (ly:duration-dot-count duration)
+   (car (ly:duration-factor duration))
+   (cdr (ly:duration-factor duration))))
+
+bottomBarSpacer = #(define-music-function (parser location duration) (ly:duration?) #{
+		    $(space (half-duration duration))
+		    \once \override Score.BarLine #'allow-span-bar = ##f 
+		    \once \override Score.BarLine #'transparent = ##t
+		    \noBreak \bar "|" \noBreak 
+		    $(space (half-duration duration)) #})
+		

@@ -1,4 +1,5 @@
 \version "2.16.0"
+
 #(use-modules (ice-9 format))
 
 #(define-markup-command (mainfont layout props text) (markup?) 
@@ -10,6 +11,26 @@
 #(define ly-score:hide-instrument-names #f)
 
 lyScoreMidi = \midi {}
+
+lyPartLyouat = \layout {
+ \context{
+    \Voice
+    \remove "Forbid_line_break_engraver"
+    \override Beam #'breakable = ##t
+    \override Glissando #'breakable = ##t
+  }
+  \context {
+    \Score
+    \override Hairpin #'minimum-length = #8
+  }
+  \context {
+    \DrumStaff
+    \accepts Voice
+    \consists "Accidental_engraver"
+    \consists "Piano_pedal_engraver"
+  }
+}
+
 lyScoreLayout = \layout { 
   \context{
     \Voice
@@ -33,8 +54,7 @@ lyScoreLayout = \layout {
   \context {
     \Score
     \accepts TimeSig
-    \accepts TopLevelStaffGroup
-    \override Hairpin #'minimum-length = #8
+     \override Hairpin #'minimum-length = #8
   }
   \context {
     \StaffGroup
@@ -42,13 +62,12 @@ lyScoreLayout = \layout {
   }
   \context {
     \Staff
-%    \remove "Time_signature_engraver"
+    \remove "Time_signature_engraver"
   }
   \context {
     \DrumStaff
-% I have no idea why this isn't accepted by default. Orchestral percussion parts often switch between drum staves and pitched staves.
     \accepts Voice
-%    \remove "Time_signature_engraver"
+    \remove "Time_signature_engraver"
     \consists "Accidental_engraver"
     \consists "Piano_pedal_engraver"
   }
@@ -59,16 +78,18 @@ multipartcombine =
 #(define-music-function (parser location parts) (ly:music-list?)
    (make-part-combine-music parser parts -1))
 
-% Paper definitions for score and parts
-#(define my-papsize 
-   (if (defined? 'paper-size) paper-size
-       (begin  (display "Paper size? (l = letter, a = arch a, t = tabloid) ")
-	       (newline)
-	       (let ((papsizechar (read-char)))
-		 (if (eq? papsizechar #\a) "arch a" (if (eq? papsizechar #\l) "letter" "11x17"))))))
+#(define (get-paper-size-from-user score-or-parts)
+   (format #t "Paper size for ~s? (l = letter, a = arch a, (default) = tabloid) \n" score-or-parts)
+   (let ((papsizechar (read-char)))
+     (case papsizechar
+       ((#\a) "arch a") 
+       ((#\l) "letter")
+       (else "11x17"))))
 
 scorepap = \paper { 
-  #(set-paper-size my-papsize)
+  #(set-paper-size (if (defined? 'score-paper-size) 
+		       score-paper-size 
+		       (get-paper-size-from-user "score")))
   short-indent = 15\mm
   two-sided = ##t
   top-markup-spacing  =
@@ -85,7 +106,9 @@ scorepap = \paper {
        (padding . 5))
 }
 partpap = \paper {
-  #(set-paper-size my-papsize)
+  #(set-paper-size (if (defined? 'part-paper-size) 
+		       part-paper-size 
+		       (get-paper-size-from-user "parts")))
   left-margin = 20
   bookTitleMarkup = \markup {
     \dir-column {
@@ -136,7 +159,7 @@ addQuotedPart = #(define-music-function (parser location folder name mus) (strin
 >>
 #}) mus)
 
-#(define ly-score:head #f)
+#(define ly-score:head (make-module))
 #(define (ly-score:part-creator file key name)
    (lambda* (prefix head reversed-movements number)
      (let ((filename (string-append prefix "-" (if number (string-append file (number->string number)) file))))
@@ -153,7 +176,7 @@ addQuotedPart = #(define-music-function (parser location folder name mus) (strin
 	  (ly:book-process 
 	   (apply ly:make-book partpap ly-score:head music) 
 	   partpap 
-	   lyScoreLayout 
+	   lyPartLayout 
 	   filename)
        (module-define! ly-score:head 'notes "")))))
 
@@ -240,7 +263,7 @@ addQuotedPart = #(define-music-function (parser location folder name mus) (strin
      (lambda (method)
        (if (eq? method 'make-part) (lambda (folder numbers transpose? is-full-score?) #f)
 	   (lambda (folder numbers transpose? is-full-score?)
-	     #{\new TimeSig $(ly-score:include folder "time_signature") #})))))
+	     #{\new TimeSig \keepWithTag #'score $(ly-score:include folder "time_signature") #})))))
 
 #(define ly-score:drum-staff-creator (lambda (key file name shortName midi)
   (lambda (method)
@@ -406,8 +429,10 @@ addQuotedPart = #(define-music-function (parser location folder name mus) (strin
     \override VerticalAxisGroup #'remove-empty = ##t 
     \override VerticalAxisGroup #'remove-first = ##t 
   } 
+{
   $(if is-full-score? #{ \keepWithTag #'score $(ly-score:include folder "time_signature") #}
    #{ \keepWithTag #'part $(ly-score:include folder "time_signature") #})
+}
 #})
 
 % Create parallel music or a specified context for a list of instrument specifications
