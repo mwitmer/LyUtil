@@ -75,3 +75,10 @@ bottomBarSpacer = #(define-music-function (parser location duration) (ly:duratio
 		    \noBreak \bar "|" \noBreak 
 		    $(space (half-duration duration)) #})
 		
+quickCue = #(define-music-function (parser location instrument cueName direction duration) (string? string? number? ly:duration?) #{
+\new CueVoice { \set instrumentCueName = $cueName } \new Voice { \cueDuring $instrument $direction { $(space duration) }}
+#})
+
+quickClefCue = #(define-music-function (parser location instrument cueName direction clef duration) (string? string? number? string? ly:duration?) #{
+\new CueVoice { \set instrumentCueName = $cueName } \new Voice { \cueDuringWithClef $instrument $direction $clef { $(space duration) }}
+#})
