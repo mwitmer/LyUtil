@@ -29,6 +29,14 @@ lyPartLayout = \layout {
     \consists "Accidental_engraver"
     \consists "Piano_pedal_engraver"
   }
+  \context {
+    \Staff
+    \consists "Time_signature_engraver"
+  }
+  \context {
+    \DrumStaff
+    \consists "Time_signature_engraver"
+  }
 }
 
 lyScoreLayout = \layout { 
@@ -72,6 +80,23 @@ lyScoreLayout = \layout {
     \consists "Piano_pedal_engraver"
   }
 }
+
+#(define (symbol-or-pair? n)
+   (or (symbol? n) (pair? n)))
+
+quickCue = #(define-music-function 
+	      (parser location key direction duration) 
+	      (symbol-or-pair? number? ly:duration?) 
+	      (if (pair? key)
+		  (ly-score:quote-from (car key) duration direction #:number (cdr key))
+		  (ly-score:quote-from key duration direction)))
+
+quickClefCue = #(define-music-function 
+		  (parser location key direction clef duration) 
+		  (symbol-or-pair? number? string? ly:duration?) 
+		  (if (pair? key)
+		      (ly-score:quote-from (car key) duration direction #:number (cdr key) #:clef clef)
+		      (ly-score:quote-from key duration direction #:clef clef)))
 
 % A music function that can take a list of parts and combine them into one staff. Still doesn't really work for more than 2 parts
 multipartcombine =
@@ -150,15 +175,6 @@ partpap = \paper {
 #(define (ly-score:combined-part-numbers n)
    (string-append (number->string (car n)) ", " (number->string (cdr n))))
 
-addQuotedPart = #(define-music-function (parser location folder name mus) (string? string? ly:music?)
-		  (add-quotable parser name #{
-<<
-		   \keepWithTag #'part $(ly-score:include folder name)
-		   $(ly-score:time-signature folder #f)
-		   
->>
-#}) mus)
-
 #(define ly-score:head (make-module))
 #(define (ly-score:part-creator file key name)
    (lambda* (prefix head reversed-movements number)
@@ -190,7 +206,7 @@ addQuotedPart = #(define-music-function (parser location folder name mus) (strin
 
 #(define ly-score:include 
    (let ((parsed (make-hash-table)))
-     (lambda (folder file)
+     (lambda* (folder file)
        (if (ly:moment? folder)
 	   #{ \mark \markup Tacet  #}
 	   (let* ((key (string-append folder "/" file ".ly")))
@@ -198,7 +214,8 @@ addQuotedPart = #(define-music-function (parser location folder name mus) (strin
 	      (or (hash-ref parsed key)
 		  (begin (if (not (file-exists? key))
 			     (ly-score:create-file key))
-			 (let ((new-music #{ \include $key #}))
+			 (let ((new-music (with-fluids ((current-folder folder)) 
+					    #{ \include $key #})))
 			   (hash-set! parsed key new-music)
 			   new-music)))))))))
 
@@ -239,7 +256,7 @@ addQuotedPart = #(define-music-function (parser location folder name mus) (strin
 		}{
 		  \override Staff.VerticalAxisGroup #'minimum-Y-extent = #'(-5 . 5)
 		  #(set-accidental-style 'neo-modern)
-		  \clef treble $music-right 
+		  \clef treble $music-right
 		}
 		  \new Staff = $(string-append file "-left") \with {
 		    \consists "Span_arpeggio_engraver"
@@ -287,13 +304,15 @@ addQuotedPart = #(define-music-function (parser location folder name mus) (strin
                 #})
                 \override Staff.VerticalAxisGroup #'minimum-Y-extent = #'(-5 . 5)
                 #(set-accidental-style 'modern-cautionary)
-                #(if is-full-score?  #{ \keepWithTag #'score  $combined-music #} #{ \keepWithTag #'part $combined-music #})
+		#(if is-full-score?  
+		    #{ \keepWithTag #'score \killCues $combined-music #} 
+		    #{ \keepWithTag #'part $combined-music #})
               }
             #}))))
           (staff (lambda* (folder number transpose? is-full-score?)
             (let* (
               (no-part-music (ly-score:include folder (if number (string-append file (number->string number)) file)))
-              (music (if is-full-score?  #{ \keepWithTag #'score $no-part-music #} #{ \keepWithTag #'part $no-part-music #})))
+              (music (if is-full-score?  #{ \keepWithTag #'score \killCues $no-part-music #} #{ \keepWithTag #'part $no-part-music #})))
               (if (= (ly:moment-main-numerator (ly:music-length music)) 0) '()
             #{
               \new DrumStaff  = $(if number (string-append file (number->string number)) file) \with  {
@@ -339,17 +358,19 @@ addQuotedPart = #(define-music-function (parser location folder name mus) (strin
                 \set Staff.midiInstrument = $midi
                 #(if (not ly-score:hide-instrument-names) #{
                   \set Staff.instrumentName = $(markup #:secondaryfont (string-append name " " (ly-score:combined-part-numbers numbers)))
-                  \set Staff.instrumentName = $(markup #:secondaryfont shortName)
+                  \set Staff.shortInstrumentName = $(markup #:secondaryfont shortName)
                 #})
                 \override Staff.VerticalAxisGroup #'minimum-Y-extent = #'(-5 . 5)
                 #(set-accidental-style 'modern-cautionary)
-                #(if is-full-score?  #{ \keepWithTag #'score $combined-music #} #{ \keepWithTag #'part $combined-music #})
+                #(if is-full-score?  
+		     #{ \keepWithTag #'score \killCues $combined-music #} 
+		     #{ \keepWithTag #'part $combined-music #})
               }
             #}))))
           (staff (lambda* (folder number transpose? is-full-score?)
             (let* (
               (no-part-music (ly-score:include folder (if number (string-append file (number->string number)) file)))
-              (music (if is-full-score?  #{ \keepWithTag #'score $no-part-music #} #{ \keepWithTag #'part $no-part-music #})))
+              (music (if is-full-score?  #{ \keepWithTag #'score \killCues $no-part-music #} #{ \keepWithTag #'part $no-part-music #})))
               (if (= (ly:moment-main-numerator (ly:music-length music)) 0) '()
             #{
               \new Staff  = $(if number (string-append file (number->string number)) file) \with  {
@@ -368,24 +389,48 @@ addQuotedPart = #(define-music-function (parser location folder name mus) (strin
                  \override Staff.VerticalAxisGroup #'minimum-Y-extent = #'(-5 . 5)
                  #(set-accidental-style 'modern-cautionary)
                  \compressFullBarRests
-                 $(if transpose? 
-		      (ly-score:transpose music transpose) music)
-              }
-            #}))))
+		 $(if transpose? (ly-score:transpose music transpose) music)
+		 }
+		#}))))
           (make-part (ly-score:part-creator file key name)))
     (case method
       ((combine) combine)
       ((staff) staff)
-      ((add-quote) (lambda (folder number) 
-		     (let* ((no-part-music (ly-score:include folder (if number (string-append file (number->string number)) file)))
-			    (music #{ \keepWithTag #'part $no-part-music #}))
-		       #{ \addQuote $(if number (string-append name (number->string number)) name) $music #})))
+      ((quote) (lambda* (folder duration direction number clef) 
+		     (let ((quote-name (if number (string-append name (number->string number)) name))
+			   (quotes (eval 'musicQuotes (current-module))))
+		       (if (not (hash-ref quotes quote-name))
+			   (let* ((no-part-music (ly-score:include folder (if number (string-append file (number->string number)) file)))
+				  (music #{ \keepWithTag #'part $no-part-music #}))
+			     #{ \addQuote quote-name $music #}))
+		       #{ \new CueVoice { \set instrumentCueName = $(if number (string-append name " " (number->string number)) name) }
+			  \new Voice {
+			    #(if clef
+			      #{ \transposedCueDuringWithClef quote-name $direction c' $clef { $(space duration) } #}
+			      #{ \transposedCueDuring quote-name $direction c' { $(space duration) }#})
+			  }#})))
       ((make-part) make-part)
       (else (ly:error (string-append "Unknown method " (symbol->string method) " called on staff creator"))))))))
 
-#(define* (ly-score:add-quote key folder #:optional number) 
-   (((ly-score:instrument-defs-lookup key) 'add-quote) folder number))
+transposedCueDuringWithClef =
+#(define-music-function
+   (parser location what dir pitch clef main-music)
+   (string? ly:dir? ly:pitch? string? ly:music?)
 
+   (make-music 'QuoteMusic
+	       'element main-music
+	       'quoted-context-type 'Voice
+	       'quoted-context-id "cue"
+	       'quoted-music-name what
+	       'quoted-transposition pitch
+	       'quoted-music-clef clef
+	       'quoted-voice-direction dir))
+
+#(define current-folder (make-fluid))
+#(define current-transposition (make-fluid))
+
+#(define* (ly-score:quote-from key duration direction #:key number clef) 
+   (((ly-score:instrument-defs-lookup key) 'quote) (fluid-ref current-folder) duration direction number clef))
 % Define a table to store staff creators 
 #(define ly-score-private:instrument-defs (make-hash-table))
 

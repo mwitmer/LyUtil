@@ -13,8 +13,6 @@ showRest = #(define-music-function (parser location duration) (ly:duration?)
 	 #{ \once \override Rest #'transparent = ##t
 	 $(make-music 'RestEvent 'duration duration) #})))
 
-
-
 tempoAdjust = \once \override Score.MetronomeMark #'X-offset = #-3.5
 tempoHidden = \once \override Score.MetronomeMark #'transparent = ##t
 hideNoteHead = \override NoteHead #'transparent = ##t
@@ -74,11 +72,3 @@ bottomBarSpacer = #(define-music-function (parser location duration) (ly:duratio
 		    \once \override Score.BarLine #'transparent = ##t
 		    \noBreak \bar "|" \noBreak 
 		    $(space (half-duration duration)) #})
-		
-quickCue = #(define-music-function (parser location instrument cueName direction duration) (string? string? number? ly:duration?) #{
-\new CueVoice { \set instrumentCueName = $cueName } \new Voice { \cueDuring $instrument $direction { $(space duration) }}
-#})
-
-quickClefCue = #(define-music-function (parser location instrument cueName direction clef duration) (string? string? number? string? ly:duration?) #{
-\new CueVoice { \set instrumentCueName = $cueName } \new Voice { \cueDuringWithClef $instrument $direction $clef { $(space duration) }}
-#})
