@@ -12,7 +12,7 @@
 
 lyScoreMidi = \midi {}
 
-lyPartLyouat = \layout {
+lyPartLayout = \layout {
  \context{
     \Voice
     \remove "Forbid_line_break_engraver"
@@ -376,8 +376,15 @@ addQuotedPart = #(define-music-function (parser location folder name mus) (strin
     (case method
       ((combine) combine)
       ((staff) staff)
+      ((add-quote) (lambda (folder number) 
+		     (let* ((no-part-music (ly-score:include folder (if number (string-append file (number->string number)) file)))
+			    (music #{ \keepWithTag #'part $no-part-music #}))
+		       #{ \addQuote $(if number (string-append name (number->string number)) name) $music #})))
       ((make-part) make-part)
       (else (ly:error (string-append "Unknown method " (symbol->string method) " called on staff creator"))))))))
+
+#(define* (ly-score:add-quote key folder #:optional number) 
+   (((ly-score:instrument-defs-lookup key) 'add-quote) folder number))
 
 % Define a table to store staff creators 
 #(define ly-score-private:instrument-defs (make-hash-table))
@@ -405,7 +412,7 @@ addQuotedPart = #(define-music-function (parser location folder name mus) (strin
     (clarinet-in-e-flat ,(ly-score:single-staff-creator 'clarinet-in-e-flat "clarinet-in-e-flat"      (markup "E" #:flat " Clarinet")    (markup "Cl(E" #:flat ")")        "clarinet"       "treble"      (ly:make-pitch 0 2 -1/2)))
     (clarinet-in-b-flat ,(ly-score:single-staff-creator 'clarinet-in-b-flat "clarinet-in-b-flat"      (markup "B" #:flat " Clarinet")    "Cl."        "clarinet"       "treble"      (ly:make-pitch -1 6 -1/2)))
     (clarinet-in-a      ,(ly-score:single-staff-creator 'clarinet-in-a      "clarinet-in-a" "A Clarinet"  "Cl."     "clarinet"     "treble"      (ly:make-pitch -1 5 0)))
-    (bass-clarinet      ,(ly-score:single-staff-creator 'bass-clarinet      "bass-clarinet" "Bass Clarinet""B. Cl."   "clarinet"     "bass"      (ly:make-pitch -2 6 -1/2)))
+    (bass-clarinet      ,(ly-score:single-staff-creator 'bass-clarinet      "bass-clarinet" "Bass Clarinet""B. Cl."   "clarinet"     "bass"      (ly:make-pitch 1 1 0)))
     (oboe               ,(ly-score:single-staff-creator 'oboe               "oboe"          "Oboe"        "Ob."        "oboe"         "treble"      (ly:make-pitch 0 0 0)))
     (english-horn       ,(ly-score:single-staff-creator 'english-horn       "english-horn"  "English Horn""E.H."     "oboe"         "treble"      (ly:make-pitch 0 3 0)))
     (bassoon            ,(ly-score:single-staff-creator 'bassoon            "bassoon"       "Bassoon"     "Bs."        "bassoon"      "bass"        (ly:make-pitch 0 0 0)))
