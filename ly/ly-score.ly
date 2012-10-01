@@ -10,6 +10,8 @@
 
 #(define ly-score:hide-instrument-names #f)
 
+partBreak = \tag #'part {\pageBreak}
+noPartBreak = \tag #'part {\noPageBreak}
 lyScoreMidi = \midi {}
 
 lyPartLayout = \layout {
@@ -21,7 +23,7 @@ lyPartLayout = \layout {
   }
   \context {
     \Score
-    \override Hairpin #'minimum-length = #8
+    \override Hairpin #'minimum-length = #12
   }
   \context {
     \DrumStaff
@@ -397,20 +399,24 @@ partpap = \paper {
       ((combine) combine)
       ((staff) staff)
       ((quote) (lambda* (folder duration direction number clef) 
-		     (let ((quote-name (if number (string-append name (number->string number)) name))
+		     (let ((quote-name (if number (string-append (symbol->string key) (number->string number)) name))
 			   (quotes (eval 'musicQuotes (current-module))))
 		       (if (not (hash-ref quotes quote-name))
-			   (let* ((no-part-music (ly-score:include folder (if number (string-append file (number->string number)) file)))
+			   (let* ((no-part-music #{ \killCues $(ly-score:include folder (if number (string-append file (number->string number)) file)) #})
 				  (music #{ \keepWithTag #'part $no-part-music #}))
-			     #{ \addQuote quote-name $music #}))
-		       #{ \new CueVoice { \set instrumentCueName = $(if number (string-append name " " (number->string number)) name) }
+			     #{ \addQuote #quote-name $music #}))
+		       #{ \new CueVoice { \set instrumentCueName = $(if number (markup name " " (number->string number)) name) }
 			  \new Voice {
 			    #(if clef
-			      #{ \transposedCueDuringWithClef quote-name $direction c' $clef { $(space duration) } #}
-			      #{ \transposedCueDuring quote-name $direction c' { $(space duration) }#})
+			      #{ \transposedCueDuringWithClef #quote-name $direction c' $clef { $(space duration) } #}
+			      #{ \transposedCueDuring #quote-name $direction c' { $(space duration) }#})
 			  }#})))
       ((make-part) make-part)
       (else (ly:error (string-append "Unknown method " (symbol->string method) " called on staff creator"))))))))
+
+hideCueName = \once \override Score.InstrumentSwitch #'transparent = ##t
+showCueDynamicSpan = \set Score.quotedCueEventTypes = #'(note-event rest-event tie-event beam-event tuplet-span-event dynamic-event span-dynamic-event)
+hideCueDynamicSpan = \set Score.quotedCueEventTypes = #'(note-event rest-event tie-event beam-event tuplet-span-event dynamic-event)
 
 transposedCueDuringWithClef =
 #(define-music-function
@@ -532,7 +538,7 @@ transposedCueDuringWithClef =
 	  (my-score #{ \score { $my-music } #}))
      (ly:score-set-header! my-score (ly-score:alist->module title))
 ;;     (if is-full-score? (ly:score-add-output-def! my-score my-midi))
-     (ly:score-add-output-def! my-score (ly:output-def-clone lyScoreLayout))
+     (ly:score-add-output-def! my-score (ly:output-def-clone (if is-full-score? lyScoreLayout lyPartLayout)))
      my-score))
 
 % Recursive function to go through the instrument specification and extract parts
