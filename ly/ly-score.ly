@@ -418,6 +418,18 @@ hideCueName = \once \override Score.InstrumentSwitch #'transparent = ##t
 showCueDynamicSpan = \set Score.quotedCueEventTypes = #'(note-event rest-event tie-event beam-event tuplet-span-event dynamic-event span-dynamic-event)
 hideCueDynamicSpan = \set Score.quotedCueEventTypes = #'(note-event rest-event tie-event beam-event tuplet-span-event dynamic-event)
 
+transposedCueDuring =
+#(define-music-function
+   (parser location what dir pitch main-music)
+   (string? ly:dir? ly:pitch? ly:music?)
+
+   (make-music 'QuoteMusic
+	       'element main-music
+	       'quoted-context-type 'Voice
+	       'quoted-context-id "cue"
+	       'quoted-music-name what
+	       'quoted-transposition pitch))
+
 transposedCueDuringWithClef =
 #(define-music-function
    (parser location what dir pitch clef main-music)
@@ -429,8 +441,8 @@ transposedCueDuringWithClef =
 	       'quoted-context-id "cue"
 	       'quoted-music-name what
 	       'quoted-transposition pitch
-	       'quoted-music-clef clef
-	       'quoted-voice-direction dir))
+	       'quoted-music-clef clef))
+
 
 #(define current-folder (make-fluid))
 #(define current-transposition (make-fluid))
