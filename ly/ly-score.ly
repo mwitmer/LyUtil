@@ -87,18 +87,18 @@ lyScoreLayout = \layout {
    (or (symbol? n) (pair? n)))
 
 quickCue = #(define-music-function 
-	      (parser location key direction duration) 
-	      (symbol-or-pair? number? ly:duration?) 
+	      (parser location key duration) 
+	      (symbol-or-pair? ly:duration?) 
 	      (if (pair? key)
-		  (ly-score:quote-from (car key) duration direction #:number (cdr key))
-		  (ly-score:quote-from key duration direction)))
+		  (ly-score:quote-from (car key) duration #:number (cdr key))
+		  (ly-score:quote-from key duration)))
 
 quickClefCue = #(define-music-function 
-		  (parser location key direction clef duration) 
-		  (symbol-or-pair? number? string? ly:duration?) 
+		  (parser location key clef duration) 
+		  (symbol-or-pair? string? ly:duration?) 
 		  (if (pair? key)
-		      (ly-score:quote-from (car key) duration direction #:number (cdr key) #:clef clef)
-		      (ly-score:quote-from key duration direction #:clef clef)))
+		      (ly-score:quote-from (car key) duration #:number (cdr key) #:clef clef)
+		      (ly-score:quote-from key duration #:clef clef)))
 
 % A music function that can take a list of parts and combine them into one staff. Still doesn't really work for more than 2 parts
 multipartcombine =
@@ -398,19 +398,19 @@ partpap = \paper {
     (case method
       ((combine) combine)
       ((staff) staff)
-      ((quote) (lambda* (folder duration direction number clef) 
+      ((quote) (lambda* (folder duration number clef) 
 		     (let ((quote-name (if number (string-append (symbol->string key) (number->string number)) name))
 			   (quotes (eval 'musicQuotes (current-module))))
 		       (if (not (hash-ref quotes quote-name))
-			   (let* ((no-part-music #{ \killCues $(ly-score:include folder (if number (string-append file (number->string number)) file)) #})
+			   (let* ((no-part-music #{ \killCues \include #(string-append folder "/" (if number (string-append file (number->string number)) file) ".ly") #})
 				  (music #{ \keepWithTag #'part $no-part-music #}))
 			     #{ \addQuote #quote-name $music #}))
 		       #{ \new CueVoice { \set instrumentCueName = $(if number (markup name " " (number->string number)) name) }
 			  \new Voice {
-			    #(if clef
-			      #{ \transposedCueDuringWithClef #quote-name $direction c' $clef { $(space duration) } #}
-			      #{ \transposedCueDuring #quote-name $direction c' { $(space duration) }#})
-			  }#})))
+				      #(if clef
+					   #{ \transposedCueDuringWithClef #quote-name c' $clef { $(space duration) } #}
+					   #{ \transposedCueDuring #quote-name c' { $(space duration) }#})
+				      }#})))
       ((make-part) make-part)
       (else (ly:error (string-append "Unknown method " (symbol->string method) " called on staff creator"))))))))
 
@@ -420,8 +420,8 @@ hideCueDynamicSpan = \set Score.quotedCueEventTypes = #'(note-event rest-event t
 
 transposedCueDuring =
 #(define-music-function
-   (parser location what dir pitch main-music)
-   (string? ly:dir? ly:pitch? ly:music?)
+   (parser location what pitch main-music)
+   (string? ly:pitch? ly:music?)
 
    (make-music 'QuoteMusic
 	       'element main-music
@@ -432,8 +432,8 @@ transposedCueDuring =
 
 transposedCueDuringWithClef =
 #(define-music-function
-   (parser location what dir pitch clef main-music)
-   (string? ly:dir? ly:pitch? string? ly:music?)
+   (parser location what pitch clef main-music)
+   (string? ly:pitch? string? ly:music?)
 
    (make-music 'QuoteMusic
 	       'element main-music
@@ -447,8 +447,14 @@ transposedCueDuringWithClef =
 #(define current-folder (make-fluid))
 #(define current-transposition (make-fluid))
 
-#(define* (ly-score:quote-from key duration direction #:key number clef) 
-   (((ly-score:instrument-defs-lookup key) 'quote) (fluid-ref current-folder) duration direction number clef))
+#(define ly-score:quote-from
+   (let ((making-cue? (make-fluid)))
+    (lambda* (key duration #:key number clef)
+      (if (not (fluid-ref making-cue?))
+	  (with-fluids ((making-cue? #t))
+	    (((ly-score:instrument-defs-lookup key) 'quote) (fluid-ref current-folder) duration number clef))
+	  (space duration)))))
+
 % Define a table to store staff creators 
 #(define ly-score-private:instrument-defs (make-hash-table))
 
@@ -482,7 +488,7 @@ transposedCueDuringWithClef =
     (contrabassoon      ,(ly-score:single-staff-creator 'contrabassoon      "contrabassoon" "Contrabassoon""Cbn."      "bassoon"      "bass"        (ly:make-pitch 0 0 0)))
     (trumpet-in-d       ,(ly-score:single-staff-creator 'trumpet-in-d       "trumpet-in-d"  "Trumpet in D""Tr(D)"     "trumpet"      "treble"      (ly:make-pitch 0 0 0)))
     (trumpet-in-c       ,(ly-score:single-staff-creator 'trumpet-in-c       "trumpet-in-c"  "Trumpet"     "Tr."        "trumpet"      "treble"      (ly:make-pitch 0 0 0)))
-    (horn               ,(ly-score:single-staff-creator 'horn               "horn"          "Horn"        "Hn."        "french horn"  "treble"      (ly:make-pitch 0 3 0)))
+    (horn               ,(ly-score:single-staff-creator 'horn               "horn"          "Horn"        "Hn."        "french horn"  "treble"      (ly:make-pitch 0 4 0)))
     (trombone           ,(ly-score:single-staff-creator 'trombone           "trombone"      "Trombone"    "Tbn."       "trombone"     "bass"        (ly:make-pitch 0 0 0)))
     (bass-trombone      ,(ly-score:single-staff-creator 'bass-trombone      "bass-trombone" "Bass Trombone" "B Tbn."   "trombone"     "bass"        (ly:make-pitch 0 0 0)))
     (tuba               ,(ly-score:single-staff-creator 'tuba               "tuba"          "Tuba"        "Tb."        "tuba"         "bass"        (ly:make-pitch 0 0 0)))

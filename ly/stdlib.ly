@@ -72,3 +72,4 @@ bottomBarSpacer = #(define-music-function (parser location duration) (ly:duratio
 		    \once \override Score.BarLine #'transparent = ##t
 		    \noBreak \bar "|" \noBreak 
 		    $(space (half-duration duration)) #})
+
