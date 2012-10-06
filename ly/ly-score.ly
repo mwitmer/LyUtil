@@ -485,7 +485,7 @@ transposedCueDuringWithClef =
     (clarinet-in-a      ,(ly-score:single-staff-creator 'clarinet-in-a      "clarinet-in-a" "A Clarinet"  "Cl."     "clarinet"     "treble"      (ly:make-pitch -1 5 0)))
     (bass-clarinet      ,(ly-score:single-staff-creator 'bass-clarinet      "bass-clarinet" "Bass Clarinet""B. Cl."   "clarinet"     "bass"      (ly:make-pitch 1 1 0)))
     (oboe               ,(ly-score:single-staff-creator 'oboe               "oboe"          "Oboe"        "Ob."        "oboe"         "treble"      (ly:make-pitch 0 0 0)))
-    (english-horn       ,(ly-score:single-staff-creator 'english-horn       "english-horn"  "English Horn""E.H."     "oboe"         "treble"      (ly:make-pitch 0 3 0)))
+    (english-horn       ,(ly-score:single-staff-creator 'english-horn       "english-horn"  "English Horn""E.H."     "oboe"         "treble"      (ly:make-pitch 0 4 0)))
     (bassoon            ,(ly-score:single-staff-creator 'bassoon            "bassoon"       "Bassoon"     "Bs."        "bassoon"      "bass"        (ly:make-pitch 0 0 0)))
     (contrabassoon      ,(ly-score:single-staff-creator 'contrabassoon      "contrabassoon" "Contrabassoon""Cbn."      "bassoon"      "bass"        (ly:make-pitch 0 0 0)))
     (trumpet-in-d       ,(ly-score:single-staff-creator 'trumpet-in-d       "trumpet-in-d"  "Trumpet in D""Tr(D)"     "trumpet"      "treble"      (ly:make-pitch 0 0 0)))
