@@ -23,13 +23,16 @@ lyPartLayout = \layout {
   }
   \context {
     \Score
-    \override Hairpin #'minimum-length = #12
+    \override Hairpin #'minimum-length = #6
   }
   \context {
     \DrumStaff
     \accepts Voice
     \consists "Accidental_engraver"
     \consists "Piano_pedal_engraver"
+  }
+  \context {
+    \StaffGroup
   }
   \context {
     \Staff
@@ -177,26 +180,26 @@ partpap = \paper {
 #(define (ly-score:combined-part-numbers n)
    (string-append (number->string (car n)) ", " (number->string (cdr n))))
 
-#(define ly-score:head (make-module))
+#(define ly-score:part-header (make-fluid))
 #(define (ly-score:part-creator file key name)
    (lambda* (prefix head reversed-movements number)
-     (let ((filename (string-append prefix "-" (if number (string-append file (number->string number)) file))))
-       (module-define! head 'instrument (markup #:secondaryfont (if number (markup #:secondaryfont (markup name " " (number->string number))) name)))
-      (set! ly-score:head head)
-	(let ((music (map (lambda (el) 
-		       (ly-score:make-score 
-			(car el) 
-			(cadr el) 
-			`(Parallel 
-			  ,(if number (string-append file (number->string number)) file)
-			  ,(if number (cons key number) key)) #f #t))
-			  reversed-movements)))
+     (let ((filename (string-append prefix "-" (if number (string-append file (number->string number)) file)))
+	   (head-module (ly-score:alist->module head)))
+       (module-define! head-module 'instrument (markup #:secondaryfont (if number (markup #:secondaryfont (markup name " " (number->string number))) name)))
+	(let ((music (with-fluids ((ly-score:part-header head-module)) 
+		       (map (lambda (el) 
+			      (ly-score:make-score 
+			       (car el) 
+			       (cadr el) 
+			       `(Parallel 
+				 ,(if number (string-append file (number->string number)) file)
+				 ,(if number (cons key number) key)) #f #t))
+			    reversed-movements))))
 	  (ly:book-process 
-	   (apply ly:make-book partpap ly-score:head music) 
+	   (apply ly:make-book partpap head-module music) 
 	   partpap 
 	   lyPartLayout 
-	   filename)
-       (module-define! ly-score:head 'notes "")))))
+	   filename)))))
 
 #(define (ly-score:create-file key)
    (format #f "Creating missing file: ~s.\n" key)
@@ -217,8 +220,8 @@ partpap = \paper {
 		  (begin (if (not (file-exists? key))
 			     (ly-score:create-file key))
 			 (let ((new-music (with-fluids ((current-folder folder)) 
-					    #{ \include $key #})))
-			   (hash-set! parsed key new-music)
+					   #{ \include $key #})))
+;;			   (hash-set! parsed key new-music)
 			   new-music)))))))))
 
 #(define (ly-score:tacet-staff) 
@@ -402,7 +405,7 @@ partpap = \paper {
 		     (let ((quote-name (if number (string-append (symbol->string key) (number->string number)) name))
 			   (quotes (eval 'musicQuotes (current-module))))
 		       (if (not (hash-ref quotes quote-name))
-			   (let* ((no-part-music #{ \killCues \include #(string-append folder "/" (if number (string-append file (number->string number)) file) ".ly") #})
+			   (let* ((no-part-music #{ \include #(string-append folder "/" (if number (string-append file (number->string number)) file) ".ly") #})
 				  (music #{ \keepWithTag #'part $no-part-music #}))
 			     #{ \addQuote #quote-name $music #}))
 		       #{ \new CueVoice { \set instrumentCueName = $(if number (markup name " " (number->string number)) name) }
@@ -415,8 +418,8 @@ partpap = \paper {
       (else (ly:error (string-append "Unknown method " (symbol->string method) " called on staff creator"))))))))
 
 hideCueName = \once \override Score.InstrumentSwitch #'transparent = ##t
-showCueDynamicSpan = \set Score.quotedCueEventTypes = #'(note-event rest-event tie-event beam-event tuplet-span-event dynamic-event span-dynamic-event)
-hideCueDynamicSpan = \set Score.quotedCueEventTypes = #'(note-event rest-event tie-event beam-event tuplet-span-event dynamic-event)
+showCueDynamicSpan = \set Score.quotedCueEventTypes = #'(note-event glissando-event rest-event tie-event beam-event tuplet-span-event dynamic-event span-dynamic-event)
+hideCueDynamicSpan = \set Score.quotedCueEventTypes = #'(note-event glissando-event rest-event tie-event beam-event tuplet-span-event dynamic-event)
 
 transposedCueDuring =
 #(define-music-function
@@ -446,14 +449,13 @@ transposedCueDuringWithClef =
 
 #(define current-folder (make-fluid))
 #(define current-transposition (make-fluid))
+#(define making-cue? (make-fluid))
 
-#(define ly-score:quote-from
-   (let ((making-cue? (make-fluid)))
-    (lambda* (key duration #:key number clef)
-      (if (not (fluid-ref making-cue?))
-	  (with-fluids ((making-cue? #t))
-	    (((ly-score:instrument-defs-lookup key) 'quote) (fluid-ref current-folder) duration number clef))
-	  (space duration)))))
+#(define* (ly-score:quote-from key duration #:key number clef)
+   (if (not (fluid-ref making-cue?))
+       (with-fluids ((making-cue? #t))
+	 (((ly-score:instrument-defs-lookup key) 'quote) (fluid-ref current-folder) duration number clef))
+       (make-music 'MultiMeasureRestEvent 'duration duration)))
 
 % Define a table to store staff creators 
 #(define ly-score-private:instrument-defs (make-hash-table))
@@ -576,17 +578,18 @@ transposedCueDuringWithClef =
    (lambda* (prefix scorehead parthead movements instruments 
 	     #:key transpose? include-parts? include-score?)
      (if include-score?
-	 (begin (ly:book-process 
-		 (apply ly:make-book scorepap 
-			(ly-score:alist->module scorehead) 
-			(map (lambda (el) (ly-score:make-score (car el) (cadr el) instruments #t transpose?)) 
-			     (reverse movements))) 
-		 partpap 
-		 lyScoreLayout 
-		 prefix)))
+	 (with-fluids ((making-cue? #t))
+	  (begin (ly:book-process 
+		  (apply ly:make-book scorepap 
+			 (ly-score:alist->module scorehead) 
+			 (map (lambda (el) (ly-score:make-score (car el) (cadr el) instruments #t transpose?)) 
+			      (reverse movements))) 
+		  partpap 
+		  lyScoreLayout 
+		  prefix))))
      (set! adjustvib #f)
      (set! ly-score:hide-instrument-names #t)
      (if include-parts? 
 	 (ly-score:process-part 
 	  prefix 
-	  (ly-score:alist->module parthead) (reverse movements) instruments))))
+	  parthead (reverse movements) instruments))))

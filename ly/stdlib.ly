@@ -20,15 +20,30 @@ dynamicSpanText = #(define-music-function (parser location content) (markup?) #{
   \once \override DynamicTextSpanner #'(bound-details left text) = $content 
 #})
 spanText = #(define-music-function (parser location content) (markup?) #{
+  \once \override TextSpanner #'(bound-details left-broken text) = " "
   \once \override TextSpanner #'(bound-details left text) = $content 
 #})
 spanEndText = #(define-music-function (parser location content) (markup?) #{
+  \once \override TextSpanner #'(bound-details right-broken text) = " "
   \once \override TextSpanner #'(bound-details right text) = $content 
 #})
 hairpinToBarline = \once \override Hairpin #'to-barline = ##f
 #(define-markup-command (sit layout props text) (markup?) (interpret-markup layout props (markup #:italic #:small #:whiteout text)))
 #(define-markup-command (it layout props text) (markup?) (interpret-markup layout props (markup #:italic #:whiteout text)))
 #(define-markup-command (wobox layout props text) (markup?) (interpret-markup layout props (markup #:box #:whiteout text)))
+
+#(define-markup-command (draw-plus layout props width thickness) (number? number?) 
+   (let ((half-width (exact->inexact (/ width 2))))
+    (interpret-markup layout props (markup #:postscript (format #f
+								"~s setlinewidth
+newpath
+~s 0.0 moveto
+~s 0.0 lineto
+stroke
+0.0 ~s moveto
+0.0 ~s lineto
+stroke
+" thickness (- half-width) half-width (- half-width) half-width)))))
 
 stemLengths = 
 #(define-music-function (parser location lengths) (list?)
