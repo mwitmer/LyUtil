@@ -23,7 +23,8 @@ lyPartLayout = \layout {
   }
   \context {
     \Score
-    \override Hairpin #'minimum-length = #6
+    \override Hairpin #'minimum-length = #8
+    \override MultiMeasureRest #'expand-limit = #12
   }
   \context {
     \DrumStaff
