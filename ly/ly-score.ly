@@ -24,7 +24,6 @@ lyPartLayout = \layout {
   \context {
     \Score
     \override Hairpin #'minimum-length = #8
-    \override MultiMeasureRest #'expand-limit = #12
   }
   \context {
     \DrumStaff
@@ -262,14 +261,18 @@ partpap = \paper {
 		}{
 		  \override Staff.VerticalAxisGroup #'minimum-Y-extent = #'(-5 . 5)
 		  #(set-accidental-style 'neo-modern)
-		  \clef treble $music-right
+		  \clef treble $(if is-full-score? 
+		                  #{ \keepWithTag #'score #music-right #}
+                                  #{ \keepWithTag #'part #music-right #})
 		}
 		  \new Staff = $(string-append file "-left") \with {
 		    \consists "Span_arpeggio_engraver"
 		  }{
 		    \override Staff.VerticalAxisGroup #'minimum-Y-extent = #'(-5 . 5)
 		    #(set-accidental-style 'neo-modern)
-		    \clef bass $music-left
+		    \clef bass $(if is-full-score? 
+		                  #{ \keepWithTag #'score #music-left #}
+                                  #{ \keepWithTag #'part #music-left #})
 		  }
 		>>
 		}
