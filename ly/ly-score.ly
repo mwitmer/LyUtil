@@ -121,6 +121,34 @@ scorepap = \paper {
   #(set-paper-size (if (defined? 'score-paper-size) 
 		       score-paper-size 
 		       (get-paper-size-from-user "score")))
+
+  print-all-headers = ##t
+  first-page-number = -3
+  oddHeaderMarkup = \markup {
+    \fill-line {
+      \null
+      \null
+      \on-the-fly #(lambda (layout props arg)
+		    (if (> (chain-assoc-get 'page:page-number props -1) 1)
+		     (interpret-markup layout props arg)
+		     empty-stencil)) 
+    {
+      \halign #RIGHT \fromproperty #'page:page-number-string
+    }
+  }}
+  
+  evenHeaderMarkup = \markup {
+    \on-the-fly #(lambda (layout props arg)
+		  (if (> (chain-assoc-get 'page:page-number props -1) 1)
+		   (interpret-markup layout props arg)
+		   empty-stencil)) 
+  {
+    \halign #LEFT \fromproperty #'page:page-number-string
+  }}
+
+  bookTitleMarkup = \markup { \titlePage}
+
+
   short-indent = 15\mm
   two-sided = ##t
   top-markup-spacing  =
@@ -136,6 +164,7 @@ scorepap = \paper {
        (minimum-distance . 20)
        (padding . 5))
 }
+
 partpap = \paper {
   #(set-paper-size (if (defined? 'part-paper-size) 
 		       part-paper-size 
@@ -574,23 +603,30 @@ transposedCueDuringWithClef =
 
 #(define adjustvib #t)
 
+frontmatter = \markuplist {}
+
 % Create a score and parts from the given information
 #(define ly-score:process 
    (lambda* (prefix scorehead parthead movements instruments 
 	     #:key transpose? include-parts? include-score?)
      (if include-score?
-	 (with-fluids ((making-cue? #t))
-	  (begin (ly:book-process 
-		  (apply ly:make-book scorepap 
-			 (ly-score:alist->module scorehead) 
-			 (map (lambda (el) (ly-score:make-score (car el) (cadr el) instruments #t transpose?)) 
-			      (reverse movements))) 
-		  partpap 
-		  lyScoreLayout 
-		  prefix))))
+      (with-fluids ((making-cue? #t))
+		   (let ((score-book #{ \book { \scorepap \frontmatter } #}))
+		     (for-each (lambda (el) 
+				 (ly:book-add-score! 
+				  score-book 
+				  (ly-score:make-score (car el) (cadr el) instruments #t transpose?)) )
+				 (reverse movements))
+		     (begin (ly:book-process 
+			    score-book
+			    scorepap 
+			    lyScoreLayout 
+			    prefix)))))
      (set! adjustvib #f)
      (set! ly-score:hide-instrument-names #t)
      (if include-parts? 
 	 (ly-score:process-part 
 	  prefix 
 	  parthead (reverse movements) instruments))))
+
+
