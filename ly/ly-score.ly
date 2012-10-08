@@ -514,7 +514,7 @@ transposedCueDuringWithClef =
     (flute              ,(ly-score:single-staff-creator 'flute              "flute"         "Flute"       "Fl."        "flute"        "treble"    (ly:make-pitch 0 0 0)))
     (alto-flute         ,(ly-score:single-staff-creator 'alto-flute         "alto-flute"    "Alto Flute"  "A. Fl."     "flute"        "treble"      (ly:make-pitch 0 4 0)))
     (clarinet-in-e-flat ,(ly-score:single-staff-creator 'clarinet-in-e-flat "clarinet-in-e-flat"      (markup "E" #:flat " Clarinet")    (markup "Cl(E" #:flat ")")        "clarinet"       "treble"      (ly:make-pitch 0 2 -1/2)))
-    (clarinet-in-b-flat ,(ly-score:single-staff-creator 'clarinet-in-b-flat "clarinet-in-b-flat"      (markup "B" #:flat " Clarinet")    "Cl."        "clarinet"       "treble"      (ly:make-pitch -1 6 -1/2)))
+    (clarinet-in-b-flat ,(ly-score:single-staff-creator 'clarinet-in-b-flat "clarinet-in-b-flat"      (markup "B" #:flat " Clarinet")    "Cl."        "clarinet"       "treble"      (ly:make-pitch 0 1 0)))
     (clarinet-in-a      ,(ly-score:single-staff-creator 'clarinet-in-a      "clarinet-in-a" "A Clarinet"  "Cl."     "clarinet"     "treble"      (ly:make-pitch -1 5 0)))
     (bass-clarinet      ,(ly-score:single-staff-creator 'bass-clarinet      "bass-clarinet" "Bass Clarinet""B. Cl."   "clarinet"     "bass"      (ly:make-pitch 1 1 0)))
     (oboe               ,(ly-score:single-staff-creator 'oboe               "oboe"          "Oboe"        "Ob."        "oboe"         "treble"      (ly:make-pitch 0 0 0)))
