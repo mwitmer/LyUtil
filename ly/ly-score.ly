@@ -1,3 +1,5 @@
+%%%% -*- Mode: Scheme -*-
+
 \version "2.16.0"
 
 #(use-modules (ice-9 format))
@@ -8,11 +10,8 @@
 #(define-markup-command (secondaryfont layout props text) (markup?) 
    (interpret-markup layout props (markup text)))
 
-#(define ly-score:hide-instrument-names #f)
-
 partBreak = \tag #'part {\pageBreak}
 noPartBreak = \tag #'part {\noPageBreak}
-lyScoreMidi = \midi {}
 
 lyPartLayout = \layout {
  \context{
@@ -31,18 +30,11 @@ lyPartLayout = \layout {
     \consists "Accidental_engraver"
     \consists "Piano_pedal_engraver"
   }
-  \context {
-    \StaffGroup
-  }
-  \context {
-    \Staff
-    \consists "Time_signature_engraver"
-  }
-  \context {
-    \DrumStaff
-    \consists "Time_signature_engraver"
-  }
 }
+
+myContext = \context {Voice }
+myWith = \with { \remove "Forbid_line_break_engraver" }
+#(display (ly:context-mod? myWith))
 
 lyScoreLayout = \layout { 
   \context{
@@ -67,7 +59,7 @@ lyScoreLayout = \layout {
   \context {
     \Score
     \accepts TimeSig
-     \override Hairpin #'minimum-length = #8
+    \override Hairpin #'minimum-length = #8
   }
   \context {
     \StaffGroup
@@ -279,7 +271,7 @@ partpap = \paper {
 		     '()
 		     #{
 		  \new PianoStaff {
-		  $(if (not ly-score:hide-instrument-names) #{
+		  $(if is-full-score? #{
 		    \set PianoStaff.shortInstrumentName = $(markup #:secondaryfont shortName)
 		    \set PianoStaff.instrumentName = $(markup #:secondaryfont name)
 		    #})
@@ -336,7 +328,7 @@ partpap = \paper {
                 \set Staff.soloIIText = $(number->string (cdr numbers))
                 \set Staff.aDueText = $(string-append (number->string (car numbers)) "," (number->string (cdr numbers)))
                 \set Staff.midiInstrument = $midi
-                #(if (not ly-score:hide-instrument-names) #{
+                #(if is-full-score? #{
                   \set Staff.instrumentName = $(markup #:secondaryfont (string-append name " " (ly-score:combined-part-numbers numbers)))
                   \set Staff.instrumentName = $(markup #:secondaryfont shortName)
                 #})
@@ -360,7 +352,7 @@ partpap = \paper {
                      (padding . 3)
                      (stretchability . 4))
               } {
-                 $(if (not ly-score:hide-instrument-names) #{
+                 $(if is-full-score? #{
                    \set Staff.instrumentName =  $(if number (markup #:secondaryfont name " " #:secondaryfont (number->string number)) (markup #:secondaryfont name))
                    \set Staff.shortInstrumentName = $(if number (markup #:secondaryfont shortName " " #:secondaryfont (number->string number)) (markup #:secondaryfont shortName))
                  #})
@@ -394,7 +386,7 @@ partpap = \paper {
                 \set Staff.soloIIText = $(number->string (cdr numbers))
                 \set Staff.aDueText = $(string-append (number->string (car numbers)) "," (number->string (cdr numbers)))
                 \set Staff.midiInstrument = $midi
-                #(if (not ly-score:hide-instrument-names) #{
+                #(if is-full-score? #{
                   \set Staff.instrumentName = $(markup #:secondaryfont (string-append name " " (ly-score:combined-part-numbers numbers)))
                   \set Staff.shortInstrumentName = $(markup #:secondaryfont shortName)
                 #})
@@ -418,7 +410,7 @@ partpap = \paper {
                      (padding . 3)
                      (stretchability . 4))
               } {
-                 $(if (not ly-score:hide-instrument-names) #{
+                 $(if is-full-score? #{
                    \set Staff.instrumentName =  $(if number (markup #:secondaryfont name " " #:secondaryfont (number->string number)) (markup #:secondaryfont name))
                    \set Staff.shortInstrumentName = $(if number (markup #:secondaryfont shortName " " #:secondaryfont (number->string number)) (markup #:secondaryfont shortName))
                  #})
@@ -482,11 +474,11 @@ transposedCueDuringWithClef =
 
 #(define current-folder (make-fluid))
 #(define current-transposition (make-fluid))
-#(define making-cue? (make-fluid))
+#(define ignore-cues? (make-fluid))
 
 #(define* (ly-score:quote-from key duration #:key number clef)
-   (if (not (fluid-ref making-cue?))
-       (with-fluids ((making-cue? #t))
+   (if (not (fluid-ref ignore-cues?))
+       (with-fluids ((ignore-cues? #t))
 	 (((ly-score:instrument-defs-lookup key) 'quote) (fluid-ref current-folder) duration number clef))
        (make-music 'MultiMeasureRestEvent 'duration duration)))
 
@@ -587,49 +579,36 @@ transposedCueDuringWithClef =
 	 (newline)
 	 (mkdir folder)))
    (let* ((my-music (ly-score:make-metered-music folder instruments is-full-score? is-transposed?))
-	  (my-midi (ly:output-def-clone lyScoreMidi))
+	  (my-midi (ly:output-def-clone #{ \midi {} #}))
 	  (my-score #{ \score { $my-music } #}))
      (ly:score-set-header! my-score (ly-score:alist->module title))
-;;     (if is-full-score? (ly:score-add-output-def! my-score my-midi))
      (ly:score-add-output-def! my-score (ly:output-def-clone (if is-full-score? lyScoreLayout lyPartLayout)))
      my-score))
 
 % Recursive function to go through the instrument specification and extract parts
 #(define (ly-score:process-part prefix head reversed-movements instrument)
-   (if (list? instrument)
-       (for-each (lambda (instr) (ly-score:process-part prefix head reversed-movements instr)) (cddr instrument))
-       (if (pair? instrument)
-	   (if (pair? (cdr instrument))
-	       (map (lambda (n) (((ly-score:instrument-defs-lookup (car instrument)) 'make-part) prefix head reversed-movements n)) (list (cadr instrument) (cddr instrument)))
-	       (((ly-score:instrument-defs-lookup (car instrument)) 'make-part) prefix head reversed-movements (cdr instrument)))
-	   (((ly-score:instrument-defs-lookup instrument) 'make-part) prefix head reversed-movements #f))))
+  (if (list? instrument)
+      (for-each (lambda (instr) 
+		  (ly-score:process-part prefix head reversed-movements instr)) (cddr instrument))
+      (if (pair? instrument)
+	  (if (pair? (cdr instrument))
+	      (map (lambda (n) (((ly-score:instrument-defs-lookup (car instrument)) 'make-part) prefix head reversed-movements n)) (list (cadr instrument) (cddr instrument)))
+	      (((ly-score:instrument-defs-lookup (car instrument)) 'make-part) prefix head reversed-movements (cdr instrument)))
+	  (((ly-score:instrument-defs-lookup instrument) 'make-part) prefix head reversed-movements #f))))
 
-#(define adjustvib #t)
-
-frontmatter = \markuplist {}
-
-% Create a score and parts from the given information
-#(define ly-score:process 
-   (lambda* (prefix scorehead parthead movements instruments 
-	     #:key transpose? include-parts? include-score?)
-     (if include-score?
-      (with-fluids ((making-cue? #t))
-		   (let ((score-book #{ \book { \scorepap \frontmatter } #}))
-		     (for-each (lambda (el) 
-				 (ly:book-add-score! 
-				  score-book 
-				  (ly-score:make-score (car el) (cadr el) instruments #t transpose?)) )
-				 (reverse movements))
-		     (begin (ly:book-process 
-			    score-book
-			    scorepap 
-			    lyScoreLayout 
-			    prefix)))))
-     (set! adjustvib #f)
-     (set! ly-score:hide-instrument-names #t)
-     (if include-parts? 
-	 (ly-score:process-part 
-	  prefix 
-	  parthead (reverse movements) instruments))))
-
-
+% Create a score and parts from the given 
+#(define* (ly-score:process prefix scorehead parthead movements instruments
+			   #:key transpose? include-parts? include-score? (frontmatter #{ \markuplist {} #}))
+  (if include-score?
+      (with-fluids ((ignore-cues? #t))
+	(let ((score-book #{ \book { \paper { \scorepap } \markuplist { #frontmatter } } #}))
+	  (for-each (lambda (el) 
+		      (let ((score (ly-score:make-score (car el) (cadr el) instruments #t transpose?)))
+			(ly:book-add-score! score-book score)))
+		    (reverse movements))
+	  (ly:book-process score-book scorepap lyScoreLayout prefix))))
+  (set! adjustvib #f)
+  (if include-parts? 
+      (ly-score:process-part 
+       prefix 
+       parthead (reverse movements) instruments)))
