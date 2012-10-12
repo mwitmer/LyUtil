@@ -3,13 +3,23 @@
 #(define part-paper-size "letter")
 
 \include "ly-score.ly"
+\include "ly-score-time-sig.ly"
 
 #(ly-score:process "sample"
   '()
   '()
-  '((sample1 ()))
+  '(("sample" ()))
   '(Parallel
     "Violins"
-     violin1
-     violin2)
-#:include-score? #t)
+     time-sig
+     (violin . 1)
+     (violin . 2))
+#:include-score? #t
+#:score-layout #{ \layout { 
+  \timeSigLayout 
+  \context {
+    \Score
+    \accepts TimeSig
+  }
+} #}
+#:part-layout #{ \layout { \timeSigLayout } #})
