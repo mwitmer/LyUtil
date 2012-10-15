@@ -13,6 +13,284 @@
 partBreak = \tag #'part {\pageBreak}
 noPartBreak = \tag #'part {\noPageBreak}
 
+#(define (set-paper-staff-size pap sz)
+   (let ((new-scope (ly:output-def-scope pap)))
+     (layout-set-absolute-staff-size-in-module 
+      new-scope
+      (* sz (eval 'pt new-scope)))))
+
+#(define (ly-score:alist->module alist) 
+   (let ((mod (make-module))) 
+     (map (lambda (list-el) 
+	    (module-define! mod (car list-el) (cadr list-el))) alist) 
+     mod))
+
+#(define ly-score:part-header (make-fluid))
+
+#(define (ly-score:create-file key)
+   (format #t "Creating missing file: ~a.\n" key)
+   (let ((newfile (open-file key "w")))
+     (display "" newfile)
+     (close-port newfile)))
+
+#(define (ly-score:include folder file)
+   (if (ly:moment? folder)
+       #{ \mark \markup Tacet  #}
+       (let* ((key (format #f "~a/~a.ly" folder file)))
+	 (begin (if (not (file-exists? key))
+		    (ly-score:create-file key))
+		(with-fluids ((current-folder folder)) 
+		  #{ \include $key #})))))
+
+#(define (ly-score:tacet-staff)
+  #{
+  \new Staff \with  { \remove "Staff_symbol_engraver" } {
+    \override Staff.TimeSignature #'transparent = ##t
+    \override Staff.InstrumentName #'transparent = ##t
+    \override Staff.Clef #'transparent = ##t
+    {s8^\markup \secondaryfont Tacet}
+  }
+  #})
+
+#(define current-folder (make-fluid))
+
+#(define* (ly-score:time-signature folder #:optional (is-full-score? #t)) 
+  #{
+  \new Staff \with { 
+    \override VerticalAxisGroup #'remove-empty = ##t 
+    \override VerticalAxisGroup #'remove-first = ##t 
+  } 
+  {
+   $(if is-full-score? 
+	#{ \keepWithTag #'score $(ly-score:include folder "time_signature") #}
+	#{ \keepWithTag #'part $(ly-score:include folder "time_signature") #})
+  }
+#})
+
+#(define* (get-music-from-file file-name folder is-full-score? #:optional number)
+   (let* ((no-part-music 
+	   (ly-score:include folder 
+			     (format #f "~a~a" file-name (if number number "")))))
+     (if is-full-score?  
+	 #{ \keepWithTag #'score \killCues $no-part-music #} 
+	 #{ \keepWithTag #'part $no-part-music #})))
+
+#(define (format-instrument-with-number instrument number)
+  (cond
+   ((pair? number) (format #f "~a ~a, ~a" instrument (car number) (cdr number)))
+   (number (format #f "~a ~a" instrument number))
+   (else instrument)))
+
+#(define* (create-with-clause instrument-definition #:optional number)
+  (let ((basic-instrument-name (assq-ref instrument-definition 'instrumentName))
+	(basic-short-instrument-name (assq-ref instrument-definition 'shortInstrumentName)))
+   #{ \with {
+        instrumentName = 
+	  \markup \secondaryfont $(format-instrument-with-number basic-instrument-name number)
+        shortInstrumentName = 
+	  \markup \secondaryfont $(format-instrument-with-number basic-short-instrument-name number)
+        midiInstrument = $(assq-ref instrument-definition 'midiInstrument)
+      } 
+    #}))
+
+#(define* (get-staff-name file-name #:optional number)
+   (format #f "~a~a" file-name (if number number)))
+
+#(define (create-part prefix head instrument-def movements number paper layout) 
+   (if (not (assq-ref instrument-def 'skip-part?))
+       (let* ((key (assq-ref instrument-def 'key))
+	      (key-with-number (format #f "~a~a" key (if number number "")))
+	      (filename (format #f "~a-~a" prefix key-with-number))
+	      (head-module (ly-score:alist->module head)))
+
+	 (module-define! head-module 'instrument 
+			 (format-instrument-with-number (assq-ref instrument-def 'instrumentName) number))
+	 (with-fluids ((ly-score:part-header head-module))
+	   (let* ((book #{ \book { \paper { } } #} )
+		  (scores 
+		   (map (lambda (el)
+			  (ly-score:make-score 
+			   (car el) (cadr el) 
+			   `(Parallel ,key-with-number ,(if number (cons key number) key)) #f #t layout #f))
+			(reverse movements))))
+	     (map (lambda (score) (ly:book-add-score! book score)) scores)
+	     (ly:book-set-header! book (fluid-ref ly-score:part-header))
+	     (ly:book-process book paper layout filename))))))
+
+#(define* (staff-creator instrument-definition-or-name folder number transpose? is-full-score? 
+			#:key no-with-clause? drum-staff?)
+   (let* ((instrument-definition 
+	   (if (list? instrument-definition-or-name) 
+	       instrument-definition-or-name 
+	       (assoc-ref custom-instrument-definitions (symbol->string instrument-definition-or-name))))
+	  (file-name (assq-ref instrument-definition 'key))
+	  (staff-name (get-staff-name file-name number))
+	  (transposition (assq-ref instrument-definition 'instrumentTransposition))
+	  (music (if (pair? number) 
+		     #{ \partcombine 
+			$(get-music-from-file file-name folder is-full-score? (car number))
+			$(get-music-from-file file-name folder is-full-score? (cdr number)) #}
+		     (get-music-from-file file-name folder is-full-score? number))))
+     (if (= (ly:moment-main-numerator (ly:music-length music)) 0) #{ #}
+	 (let ((music #{
+			{
+			 #(set-accidental-style 'modern-cautionary)
+			 \clef $(assq-ref instrument-definition 'clef)
+			 \compressFullBarRests
+			 $(if (and transpose? transposition)
+			      (ly:music-transpose music transposition)
+			      music)
+			 } 
+			#}))
+	   (if drum-staff?
+		#{
+		  \new DrumStaff = $staff-name \with { $(if (not no-with-clause?) 
+							    (create-with-clause instrument-definition number)) } 
+		  $music
+		  #} 
+		#{
+		  \new Staff = $staff-name \with { $(if (not no-with-clause?) 
+							(create-with-clause instrument-definition number)) } 
+		  $music
+		  #})))))
+
+#(define (drum-staff-creator instrument-definition-or-name folder number transpose? is-full-score?)
+   (staff-creator instrument-definition-or-name folder number transpose? is-full-score? #:drum-staff? #t))
+
+#(define (piano-staff-creator instrument-definition-name folder number transpose? is-full-score?)
+   (let* ((instrument-definition 
+	   (assoc-ref custom-instrument-definitions (symbol->string instrument-definition-name)))
+	  (left-definition (assq-ref instrument-definition 'left-definition))
+	  (right-definition (assq-ref instrument-definition 'right-definition))
+	  (staff-name (get-staff-name (assq-ref instrument-definition 'key) number))
+	  (left-staff 
+	   (staff-creator left-definition folder number transpose? is-full-score? #:no-with-clause? #t))
+	  (right-staff 
+	   (staff-creator right-definition folder number transpose? is-full-score? #:no-with-clause? #t)))
+     (if (and
+	  (= (ly:moment-main-numerator (ly:music-length right-staff)) 0)
+	  (= (ly:moment-main-numerator (ly:music-length left-staff)) 0)) #{ #}
+	 #{
+	   \new PianoStaff = $staff-name \with { $(create-with-clause instrument-definition number) } 
+	   {
+	    <<
+	      $right-staff
+	      $left-staff
+	    >>
+	   } #})))
+       
+#(define (create-instrument-staff instrument folder number transpose? is-full-score?)
+   (let ((instrument-def (assoc-ref custom-instrument-definitions (symbol->string instrument))))
+     ((assq-ref instrument-def 'staff-generator) instrument folder number transpose? is-full-score?)))
+
+#(define (bass-clef-instrument properties)
+   (append '((clefGlyph . "clefs.F") (middleCPosition . 6) (clefPosition . 2)) properties))
+
+#(define (treble-clef-instrument properties)
+   (append '((clefGlyph . "clefs.G") (middleCPosition . -6) (clefPosition . -2)) properties))
+
+#(define (ly-score:make-music instruments folder is-transposed? is-full-score?)
+   (let ((music (ly-score:make-parallel-staves (cddr instruments) folder is-transposed? is-full-score?)))
+     (if (eq? (car instruments) 'Parallel) music 
+	 (context-spec-music music (car instruments) (cadr instruments)))))
+
+#(define (ly-score:make-parallel-staves instruments folder is-transposed? is-full-score?)
+   (make-simultaneous-music 
+    (filter 
+     (lambda (el) (not (null? el))) 
+     (map 
+      (lambda (instrument)
+	(if (list? instrument)
+	    (ly-score:make-music instrument folder is-transposed? is-full-score?)
+	    (if (pair? instrument) 
+		(create-instrument-staff (car instrument) folder (cdr instrument) is-transposed? is-full-score?)
+		(create-instrument-staff instrument folder #f is-transposed? is-full-score?))))
+	  instruments))))
+
+#(define (ly-score:make-metered-music folder instruments is-full-score? is-transposed?)
+   (let* ((my-time-signature (ly-score:time-signature folder is-full-score?))
+	  (my-music-timeless (ly-score:make-music instruments folder is-transposed? is-full-score?))
+	  (my-length (ly:music-length my-time-signature))
+	  (my-music-with-time 
+           (if (and (= (ly:moment-main-numerator (ly:music-length my-music-timeless)) 0) (not is-full-score?))
+	       (ly-score:tacet-staff) my-music-timeless))
+	  (my-music (make-simultaneous-music (list my-time-signature my-music-with-time))))
+     my-music))
+
+#(define (ly-score:make-score folder header instruments is-full-score? is-transposed? layout include-midi?) 
+   (if (not (file-exists? folder))
+       (begin
+	 (format #t "Creating directory: ~a\n" folder)
+	 (mkdir folder)))
+   (let* ((my-music (ly-score:make-metered-music folder instruments is-full-score? is-transposed?))
+	  (my-midi (ly:output-def-clone #{ \midi {} #}))
+	  (my-score #{ \score { $my-music } #}))
+     (if include-midi? (ly:score-add-output-def! my-score my-midi))
+     (ly:score-set-header! my-score (ly-score:alist->module header))
+     (ly:score-add-output-def! my-score (ly:output-def-clone layout))
+     my-score))
+
+% Recursive function to go through the instrument specification and extract parts
+#(define (ly-score:process-part prefix head movements instrument layout paper)
+  (if (list? instrument)
+      (for-each 
+       (lambda (instr) 
+	 (ly-score:process-part prefix head movements instr layout paper)) (cddr instrument))
+      (if (pair? instrument)
+	  (let ((instrument-def (assoc-ref custom-instrument-definitions (symbol->string (car instrument)))))
+	    (if (pair? (cdr instrument))
+		(map 
+		 (lambda (number) 
+		   (create-part prefix head instrument-def (reverse movements) number paper layout))
+		     (list (cadr instrument) (cddr instrument)))
+		(create-part prefix head instrument-def (reverse movements) (cdr instrument) 
+			     paper layout)))
+	  (let ((instrument-def (assoc-ref custom-instrument-definitions (symbol->string instrument))))
+	    (create-part prefix head instrument-def (reverse movements) #f paper layout)))))
+
+#(define ignore-cues? (make-fluid))
+
+#(define* (ly-score:process prefix scorehead parthead movements instruments 
+			    #:key transpose? include-parts? include-score? include-midi?
+			    (score-size 12) (part-size 24)
+			    (score-paper #{ \paper {} #}) (part-paper #{ \paper {} #})
+			    (score-layout #{ \layout {} #}) (part-layout #{ \layout {} #})
+			    (frontmatter #{ \markuplist {} #}))
+   (set-paper-staff-size score-paper score-size)
+   (set-paper-staff-size part-paper part-size)
+   (if include-score?
+       (with-fluids ((ignore-cues? #t))      
+	 (let ((score-book #{ \book { \paper { $score-paper } \markuplist { $frontmatter } } #}))
+	   (for-each 
+	    (lambda (el) 
+	      (ly:book-add-score! 
+	       score-book 
+	       (ly-score:make-score (car el) (cadr el) instruments #t transpose? score-layout include-midi?)))
+	    (reverse movements))
+	   (ly:book-set-header! score-book (ly-score:alist->module scorehead))
+	   (ly:book-process score-book score-paper score-layout prefix))))
+   (if include-parts? 
+       (ly-score:process-part prefix parthead movements instruments part-layout part-paper)))
+
+#(define custom-instrument-definitions '())
+
+addCustomInstrumentDefinition = #(define-void-function (parser location name context-properties other-properties) 
+				   (string? list? list?)
+   #{ \addInstrumentDefinition $name $context-properties #} 
+   (set! custom-instrument-definitions 
+	 (cons (cons name (append context-properties other-properties)) custom-instrument-definitions)))
+
+% QUICK CUES
+%
+% Lilypond's built-in cues are not quite what I wanted in this
+% application; they force you to make the cues have stems only in one
+% direction to avoid colliding with rests. I use cues as the only
+% voice in the bar they're in, so I make my own music events for cues
+% that don't specify a direction.
+%
+% Also, these cues work nicely with the instrument specifications used
+% to define as score.
+
 #(define (symbol-or-pair? n)
    (or (symbol? n) (pair? n)))
 
@@ -30,324 +308,41 @@ quickClefCue = #(define-music-function
 		      (ly-score:quote-from (car key) duration #:number (cdr key) #:clef clef)
 		      (ly-score:quote-from key duration #:clef clef)))
 
-% A music function that can take a list of parts and combine them into one staff. Still doesn't really work for more than 2 parts
-multipartcombine =
-#(define-music-function (parser location parts) (ly:music-list?)
-   (make-part-combine-music parser parts -1))
+#(define (space duration)
+  (make-music
+   'SkipEvent
+   'duration
+   duration))
 
-#(define (get-paper-size-from-user score-or-parts)
-   (format #t "Paper size for ~a? (l = letter, a = arch a, (default) = tabloid) \n" score-or-parts)
-   (let ((papsizechar (read-char)))
-     (case papsizechar
-       ((#\a) "arch a") 
-       ((#\l) "letter")
-       (else "11x17"))))
-
-scorepap = \paper { 
-  #(set-paper-size (if (defined? 'score-paper-size) 
-		       score-paper-size 
-		       (get-paper-size-from-user "score")))
-
-  print-all-headers = ##t
-  first-page-number = -3
-  oddHeaderMarkup = \markup {
-    \fill-line {
-      \null
-      \null
-      \on-the-fly #(lambda (layout props arg)
-		    (if (> (chain-assoc-get 'page:page-number props -1) 1)
-		     (interpret-markup layout props arg)
-		     empty-stencil)) 
-    {
-      \halign #RIGHT \fromproperty #'page:page-number-string
-    }
-  }}
-  
-  evenHeaderMarkup = \markup {
-    \on-the-fly #(lambda (layout props arg)
-		  (if (> (chain-assoc-get 'page:page-number props -1) 1)
-		   (interpret-markup layout props arg)
-		   empty-stencil)) 
-  {
-    \halign #LEFT \fromproperty #'page:page-number-string
-  }}
-
-  short-indent = 15\mm
-  two-sided = ##t
-  top-markup-spacing  =
-    #'((basic-distance . 10)
-       (minimum-distance . 5)
-       (padding . 5))
-  markup-system-spacing  =
-    #'((basic-distance . 30)
-       (minimum-distance . 20)
-       (padding . 5))
-  system-system-spacing = 
-    #'((basic-distance . 25)
-       (minimum-distance . 20)
-       (padding . 5))
-}
-
-partpap = \paper {
-  #(set-paper-size (if (defined? 'part-paper-size) 
-		       part-paper-size 
-		       (get-paper-size-from-user "parts")))
-  left-margin = 20
-  bookTitleMarkup = \markup {
-    \dir-column {
-      \fill-line {
-	\fontsize #3 \fromproperty #'header:instrument \null \null
-      }
-      \fill-line {
-	\null \fromproperty #'header:title \null
-      }
-      \fill-line {
-	\fromproperty #'header:notes \null \fromproperty #'header:composer
-      }
-    }
-  }
-  system-system-spacing = 
-    #'((basic-distance . 8)
-       (minimum-distance . 6)
-       (padding . 5))
-}
-
-#(define (set-paper-staff-size pap sz)
-   (let ((new-scope (ly:output-def-scope pap)))
-     (layout-set-absolute-staff-size-in-module 
-      new-scope
-      (* sz (eval 'pt new-scope)))))
-
-#(set-paper-staff-size scorepap 10)
-#(set-paper-staff-size partpap 24)
-
-#(define (ly-score:transpose music note)
-   (ly:music-transpose music note))
-
-% Helper functions
-#(define (ly-score:alist->module alist) 
-   (let ((mod (make-module))) 
-     (map (lambda (list-el) (module-define! mod (car list-el) (cadr list-el))) alist) 
-     mod))
-
-#(define (ly-score:combined-part-numbers n)
-   (format #f "~a, ~a" (number->string (car n)) (number->string (cdr n))))
-
-#(define ly-score:part-header (make-fluid))
-
-
-
-#(define (ly-score:create-file key)
-   (format #t "Creating missing file: ~a.\n" key)
-   (let ((newfile (open-file key "w")))
-     (display "" newfile)
-     (close-port newfile)))
-
-% Caches included files so multiple includes only parse once
-
-#(define (ly-score:include folder file)
-   (if (ly:moment? folder)
-       #{ \mark \markup Tacet  #}
-       (let* ((key (format #f "~a/~a.ly" folder file)))
-	 (begin (if (not (file-exists? key))
-		    (ly-score:create-file key))
-		(with-fluids ((current-folder folder)) 
-		  #{ \include $key #})))))
-
-#(define (ly-score:tacet-staff) 
-  #{
-  \new Staff \with  { \remove "Staff_symbol_engraver" } {
-    \override Staff.TimeSignature #'transparent = ##t
-    \override Staff.InstrumentName #'transparent = ##t
-    \override Staff.Clef #'transparent = ##t
-    {s8^\markup \secondaryfont Tacet}
-  }
-  #})
-
-% Define staff creators. These functions return a new function that takes a symbol as an argument and returns another function corresponding to that symbol
-% 'combine returns a function that creates a staff with a number of parts on the instrument combined
-% 'staff returns a single staff for a single part
-% 'make-part creates the pdf file for a single part
-#(define (ly-score:piano-staff-creator key file name shortName midi)
-   (lambda (method)
-     (let* ((staff 
-	     (lambda (folder number transpose? is-full-score?)
-	       (let ((music-right 
-		      (ly-score:include folder (string-append (if number (string-append file (number->string number)) file) "-right")))
-		     (music-left  
-		      (ly-score:include folder (string-append (if number (string-append file (number->string number)) file) "-left"))))
-		 (if (and (= (ly:moment-main-numerator (ly:music-length music-left)) 0) (= (ly:moment-main-numerator (ly:music-length music-right)) 0))
-		     '()
-		     #{
-		  \new PianoStaff {
-		  $(if is-full-score? #{
-		    \set PianoStaff.shortInstrumentName = $(markup #:secondaryfont shortName)
-		    \set PianoStaff.instrumentName = $(markup #:secondaryfont name)
-		    #})
-		  \set PianoStaff.midiInstrument = $midi
-		  <<
-		  \new Staff = $(string-append file "-right") \with {
-		  \consists "Span_arpeggio_engraver"
-		}{
-		  \override Staff.VerticalAxisGroup #'minimum-Y-extent = #'(-5 . 5)
-		  #(set-accidental-style 'neo-modern)
-		  \clef treble $(if is-full-score? 
-		                  #{ \keepWithTag #'score #music-right #}
-                                  #{ \keepWithTag #'part #music-right #})
-		}
-		  \new Staff = $(string-append file "-left") \with {
-		    \consists "Span_arpeggio_engraver"
-		  }{
-		    \override Staff.VerticalAxisGroup #'minimum-Y-extent = #'(-5 . 5)
-		    #(set-accidental-style 'neo-modern)
-		    \clef bass $(if is-full-score? 
-		                  #{ \keepWithTag #'score #music-left #}
-                                  #{ \keepWithTag #'part #music-left #})
-		  }
-		>>
-		}
-		  #}))))
-	    (make-part (ly-score:part-creator file key name)))
-       (case method
-	 ((combine) (ly:error "Cannot combine piano staves into one staff"))
-	 ((staff) staff)
-	 ((make-part) make-part)
-	 (else (ly:error (string-append "Unknown method " (symbol->string method) " called on staff creator")))))))
-
-
-#(define ly-score:drum-staff-creator (lambda (key file name shortName midi)
-  (lambda (method)
-    (let* ((combine (lambda* (folder numbers transpose? is-full-score?)
-            (let ((combined-music #{ \multipartcombine $(map (lambda (n) 
-              (let ((music (ly-score:include folder (string-append file (number->string n)))))
-                (if transpose? (ly-score:transpose music transpose) music)))
-                (list (car numbers) (cdr numbers))) #}))
-            (if (= (ly:moment-main-numerator (ly:music-length combined-music)) 0)
-              '()
-            #{
-              \new DrumStaff = $file {
-                \clef $clef
-                \set Staff.soloText = $(number->string (car numbers))
-                \set Staff.soloIIText = $(number->string (cdr numbers))
-                \set Staff.aDueText = $(string-append (number->string (car numbers)) "," (number->string (cdr numbers)))
-                \set Staff.midiInstrument = $midi
-                #(if is-full-score? #{
-                  \set Staff.instrumentName = $(markup #:secondaryfont (string-append name " " (ly-score:combined-part-numbers numbers)))
-                  \set Staff.instrumentName = $(markup #:secondaryfont shortName)
-                #})
-                \override Staff.VerticalAxisGroup #'minimum-Y-extent = #'(-5 . 5)
-                #(set-accidental-style 'modern-cautionary)
-		#(if is-full-score?  
-		    #{ \keepWithTag #'score \killCues $combined-music #} 
-		    #{ \keepWithTag #'part $combined-music #})
-              }
-            #}))))
-          (staff (lambda* (folder number transpose? is-full-score?)
-            (let* (
-              (no-part-music (ly-score:include folder (if number (string-append file (number->string number)) file)))
-              (music (if is-full-score?  #{ \keepWithTag #'score \killCues $no-part-music #} #{ \keepWithTag #'part $no-part-music #})))
-              (if (= (ly:moment-main-numerator (ly:music-length music)) 0) '()
-            #{
-              \new DrumStaff  = $(if number (string-append file (number->string number)) file) \with  {
-		\override VerticalAxisGroup #'staff-staff-spacing =
-                  #'((basic-distance . 5)
-                     (minimum-distance . 4)
-                     (padding . 3)
-                     (stretchability . 4))
-              } {
-                 $(if is-full-score? #{
-                   \set Staff.instrumentName =  $(if number (markup #:secondaryfont name " " #:secondaryfont (number->string number)) (markup #:secondaryfont name))
-                   \set Staff.shortInstrumentName = $(if number (markup #:secondaryfont shortName " " #:secondaryfont (number->string number)) (markup #:secondaryfont shortName))
-                 #})
-                 \set Staff.midiInstrument = $midi
-		 \override Staff.VerticalAxisGroup #'minimum-Y-extent = #'(-5 . 5)
-                 #(set-accidental-style 'modern-cautionary)
-                 \compressFullBarRests
-		 $music
-              }
-            #}))))
-          (make-part (ly-score:part-creator file key name)))
-    (case method
-      ((combine) combine)
-      ((staff) staff)
-      ((make-part) make-part)
-      (else (ly:error (string-append "Unknown method " (symbol->string method) " called on staff creator"))))))))
-
-#(define ly-score:single-staff-creator (lambda (key file name shortName midi clef transpose)
-  (lambda (method)
-    (let* ((combine (lambda* (folder numbers transpose? is-full-score?)
-            (let ((combined-music #{ \multipartcombine $(map (lambda (n) 
-              (let ((music (ly-score:include folder (string-append file (number->string n)))))
-                (if transpose? (ly-score:transpose music transpose) music)))
-                (list (car numbers) (cdr numbers))) #}))
-            (if (= (ly:moment-main-numerator (ly:music-length combined-music)) 0)
-              '()
-            #{
-              \new Staff = $file {
-                \clef $clef
-                \set Staff.soloText = $(number->string (car numbers))
-                \set Staff.soloIIText = $(number->string (cdr numbers))
-                \set Staff.aDueText = $(string-append (number->string (car numbers)) "," (number->string (cdr numbers)))
-                \set Staff.midiInstrument = $midi
-                #(if is-full-score? #{
-                  \set Staff.instrumentName = $(markup #:secondaryfont (string-append name " " (ly-score:combined-part-numbers numbers)))
-                  \set Staff.shortInstrumentName = $(markup #:secondaryfont shortName)
-                #})
-                \override Staff.VerticalAxisGroup #'minimum-Y-extent = #'(-5 . 5)
-                #(set-accidental-style 'modern-cautionary)
-                #(if is-full-score?  
-		     #{ \keepWithTag #'score \killCues $combined-music #} 
-		     #{ \keepWithTag #'part $combined-music #})
-              }
-            #}))))
-          (staff (lambda* (folder number transpose? is-full-score?)
-            (let* (
-              (no-part-music (ly-score:include folder (if number (string-append file (number->string number)) file)))
-              (music (if is-full-score?  #{ \keepWithTag #'score \killCues $no-part-music #} #{ \keepWithTag #'part $no-part-music #})))
-              (if (= (ly:moment-main-numerator (ly:music-length music)) 0) '()
-            #{
-              \new Staff  = $(if number (string-append file (number->string number)) file) \with  {
-		\override VerticalAxisGroup #'staff-staff-spacing =
-                  #'((basic-distance . 5)
-                     (minimum-distance . 4)
-                     (padding . 3)
-                     (stretchability . 4))
-              } {
-                 $(if is-full-score? #{
-                   \set Staff.instrumentName =  $(if number (markup #:secondaryfont name " " #:secondaryfont (number->string number)) (markup #:secondaryfont name))
-                   \set Staff.shortInstrumentName = $(if number (markup #:secondaryfont shortName " " #:secondaryfont (number->string number)) (markup #:secondaryfont shortName))
-                 #})
-                 \set Staff.midiInstrument = $midi
-                 \clef $clef
-                 \override Staff.VerticalAxisGroup #'minimum-Y-extent = #'(-5 . 5)
-                 #(set-accidental-style 'modern-cautionary)
-                 \compressFullBarRests
-		 $(if transpose? (ly-score:transpose music transpose) music)
-		 }
-		#}))))
-          (make-part (ly-score:part-creator file key name)))
-    (case method
-      ((combine) combine)
-      ((staff) staff)
-      ((quote) (lambda* (folder duration number clef) 
-		     (let ((quote-name (if number (string-append (symbol->string key) (number->string number)) name))
-			   (quotes (eval 'musicQuotes (current-module))))
-		       (if (not (hash-ref quotes quote-name))
-			   (let* ((no-part-music #{ \include #(string-append folder "/" (if number (string-append file (number->string number)) file) ".ly") #})
-				  (music #{ \keepWithTag #'part $no-part-music #}))
-			     #{ \addQuote #quote-name $music #}))
-		       #{ \new CueVoice { \set instrumentCueName = $(if number (markup name " " (number->string number)) name) }
-			  \new Voice {
-				      #(if clef
-					   #{ \transposedCueDuringWithClef #quote-name c' $clef { $(space duration) } #}
-					   #{ \transposedCueDuring #quote-name c' { $(space duration) }#})
-				      }#})))
-      ((make-part) make-part)
-      (else (ly:error (string-append "Unknown method " (symbol->string method) " called on staff creator"))))))))
+#(define* (ly-score:quote-from key duration #:key number clef)
+   (if (fluid-ref ignore-cues?)
+       (make-music 'MultiMeasureRestEvent 'duration duration)
+       (let* ((instrument-def (assoc-ref custom-instrument-definitions (symbol->string key)))
+	      (folder (fluid-ref current-folder))
+	      (name (assq-ref instrument-def 'instrumentName))
+	      (quote-name (format-instrument-with-number (assq-ref instrument-def 'key) number))
+	      (quotes (eval 'musicQuotes (current-module))))
+	 (if (not (hash-ref quotes quote-name))
+	     (let* ((no-part-music 
+		     (with-fluids ((ignore-cues? #t)) 
+		       #{ \include $(format #f "~a/~a~a.ly" folder key (if number number "")) #}))
+		    (music #{ \keepWithTag #'part $no-part-music #}))
+	       #{ \addQuote #quote-name $music #}))
+	 #{ \new CueVoice { \set instrumentCueName = $(if number (markup (format #f "~a ~a" name number)) name) }
+	    \new Voice {
+		#(if clef
+		     #{ \transposedCueDuringWithClef #quote-name c' $clef { $(space duration) } #}
+		     #{ \transposedCueDuring #quote-name c' { $(space duration) }#})
+		}#})))
 
 hideCueName = \once \override Score.InstrumentSwitch #'transparent = ##t
-showCueDynamicSpan = \set Score.quotedCueEventTypes = #'(note-event glissando-event rest-event tie-event beam-event tuplet-span-event dynamic-event span-dynamic-event)
-hideCueDynamicSpan = \set Score.quotedCueEventTypes = #'(note-event glissando-event rest-event tie-event beam-event tuplet-span-event dynamic-event)
+
+showCueDynamicSpan = \set Score.quotedCueEventTypes = 
+  #'(note-event 
+     glissando-event rest-event tie-event beam-event tuplet-span-event dynamic-event span-dynamic-event)
+hideCueDynamicSpan = \set Score.quotedCueEventTypes = 
+  #'(note-event 
+     glissando-event rest-event tie-event beam-event tuplet-span-event dynamic-event)
 
 transposedCueDuring =
 #(define-music-function
@@ -366,188 +361,9 @@ transposedCueDuringWithClef =
    (parser location what pitch clef main-music)
    (string? ly:pitch? string? ly:music?)
 
-   (make-music 'QuoteMusic
-	       'element main-music
+   (make-music 'QuoteMusic 'element main-music
 	       'quoted-context-type 'Voice
 	       'quoted-context-id "cue"
 	       'quoted-music-name what
 	       'quoted-transposition pitch
 	       'quoted-music-clef clef))
-
-
-#(define current-folder (make-fluid))
-#(define ignore-cues? (make-fluid))
-
-#(define* (ly-score:quote-from key duration #:key number clef)
-   (if (not (fluid-ref ignore-cues?))
-       (with-fluids ((ignore-cues? #t))
-	 (((ly-score:instrument-defs-lookup key) 'quote) (fluid-ref current-folder) duration number clef))
-       (make-music 'MultiMeasureRestEvent 'duration duration)))
-
-% Define a table to store staff creators 
-#(define ly-score-private:instrument-defs (make-hash-table))
-
-#(define ly-score:register-instrument (lambda (key creator)
-  (hash-set! ly-score-private:instrument-defs key creator)))
-
-#(define ly-score:instrument-defs-lookup (lambda (key)
-  (let ((inst (hash-ref ly-score-private:instrument-defs key)))
-    (if (not inst)
-      (ly:error (string-append "Missing instrument: " (symbol->string key))))
-      inst)))
-
-% Define some built-in staff creators
-#(map (lambda (l) (ly-score:register-instrument (car l) (cadr l)))
-   `(
-    (violin            ,(ly-score:single-staff-creator 'violin             "violin"        "Violin"      "Vl."        "violin"       "treble"      (ly:make-pitch 0 0 0)))
-    (viola              ,(ly-score:single-staff-creator 'viola              "viola"         "Viola"       "Vla."        "violin"       "alto"        (ly:make-pitch 0 0 0)))
-    (cello              ,(ly-score:single-staff-creator 'cello              "cello"         "Cello"       "Vc."        "cello"        "bass"        (ly:make-pitch 0 0 0)))
-    (contrabass         ,(ly-score:single-staff-creator 'contrabass         "contrabass"    "Contrabass"  "Cb."        "cello"        "bass"        (ly:make-pitch 0 0 0)))
-    (piccolo            ,(ly-score:single-staff-creator 'piccolo            "piccolo"       "Piccolo"     "Picc."       "flute"        "treble"     (ly:make-pitch 0 0 0)))
-    (flute              ,(ly-score:single-staff-creator 'flute              "flute"         "Flute"       "Fl."        "flute"        "treble"    (ly:make-pitch 0 0 0)))
-    (alto-flute         ,(ly-score:single-staff-creator 'alto-flute         "alto-flute"    "Alto Flute"  "A. Fl."     "flute"        "treble"      (ly:make-pitch 0 4 0)))
-    (clarinet-in-e-flat ,(ly-score:single-staff-creator 'clarinet-in-e-flat "clarinet-in-e-flat"      (markup "E" #:flat " Clarinet")    (markup "Cl(E" #:flat ")")        "clarinet"       "treble"      (ly:make-pitch 0 2 -1/2)))
-    (clarinet-in-b-flat ,(ly-score:single-staff-creator 'clarinet-in-b-flat "clarinet-in-b-flat"      (markup "B" #:flat " Clarinet")    "Cl."        "clarinet"       "treble"      (ly:make-pitch 0 1 0)))
-    (clarinet-in-a      ,(ly-score:single-staff-creator 'clarinet-in-a      "clarinet-in-a" "A Clarinet"  "Cl."     "clarinet"     "treble"      (ly:make-pitch 0 2 0)))
-    (bass-clarinet      ,(ly-score:single-staff-creator 'bass-clarinet      "bass-clarinet" "Bass Clarinet""B. Cl."   "clarinet"     "bass"      (ly:make-pitch 1 1 0)))
-    (oboe               ,(ly-score:single-staff-creator 'oboe               "oboe"          "Oboe"        "Ob."        "oboe"         "treble"      (ly:make-pitch 0 0 0)))
-    (english-horn       ,(ly-score:single-staff-creator 'english-horn       "english-horn"  "English Horn""E.H."     "oboe"         "treble"      (ly:make-pitch 0 4 0)))
-    (bassoon            ,(ly-score:single-staff-creator 'bassoon            "bassoon"       "Bassoon"     "Bs."        "bassoon"      "bass"        (ly:make-pitch 0 0 0)))
-    (contrabassoon      ,(ly-score:single-staff-creator 'contrabassoon      "contrabassoon" "Contrabassoon""Cbn."      "bassoon"      "bass"        (ly:make-pitch 0 0 0)))
-    (trumpet-in-d       ,(ly-score:single-staff-creator 'trumpet-in-d       "trumpet-in-d"  "Trumpet in D""Tr(D)"     "trumpet"      "treble"      (ly:make-pitch 0 0 0)))
-    (trumpet-in-c       ,(ly-score:single-staff-creator 'trumpet-in-c       "trumpet-in-c"  "Trumpet"     "Tr."        "trumpet"      "treble"      (ly:make-pitch 0 0 0)))
-    (horn               ,(ly-score:single-staff-creator 'horn               "horn"          "Horn"        "Hn."        "french horn"  "treble"      (ly:make-pitch 0 4 0)))
-    (trombone           ,(ly-score:single-staff-creator 'trombone           "trombone"      "Trombone"    "Tbn."       "trombone"     "bass"        (ly:make-pitch 0 0 0)))
-    (bass-trombone      ,(ly-score:single-staff-creator 'bass-trombone      "bass-trombone" "Bass Trombone" "B Tbn."   "trombone"     "bass"        (ly:make-pitch 0 0 0)))
-    (tuba               ,(ly-score:single-staff-creator 'tuba               "tuba"          "Tuba"        "Tb."        "tuba"         "bass"        (ly:make-pitch 0 0 0)))
-    (percussion         ,(ly-score:drum-staff-creator   'percussion         "percussion"    "Percussion"  "Perc."      "vibraphone"))
-    (timpani            ,(ly-score:single-staff-creator 'timpani            "timpani"       "Timpani"     "Timp."      "timpani"      "bass"  (ly:make-pitch 0 0 0)))
-    (harp               ,(ly-score:piano-staff-creator  'harp               "harp"          "Harp"        "Hp."        "harp"))
-    (piano              ,(ly-score:piano-staff-creator  'piano              "piano"         "Piano"       "Pno."        "acoustic grand"))))
-
-
-% Returns a staff that contains information global to a score. There must be a file called "time_signature.ly" with this information in every movement's folder
-#(define* (ly-score:time-signature folder #:optional (is-full-score? #t)) 
-  #{
-  \new Staff \with { 
-    \override VerticalAxisGroup #'remove-empty = ##t 
-    \override VerticalAxisGroup #'remove-first = ##t 
-  } 
-  {
-   $(if is-full-score? 
-	#{ \keepWithTag #'score $(ly-score:include folder "time_signature") #}
-	#{ \keepWithTag #'part $(ly-score:include folder "time_signature") #})
-  }
-#})
-
-#(define (ly-score:part-creator file key name) 
-   (lambda (prefix head reversed-movements number layout)
-     (let ((filename (string-append prefix "-" (if number (string-append file (number->string number)) file)))
-	   (head-module (ly-score:alist->module head)))
-       (module-define! head-module 
-		       'instrument 
-		       (markup #:secondaryfont 
-			       (if number (markup #:secondaryfont (markup name " " (number->string number))) name))
-		       (let ((music (with-fluids ((ly-score:part-header head-module)) 
-				      (map (lambda (el) 
-					     (ly-score:make-score 
-					      (car el) 
-					      (cadr el) 
-					      `(Parallel 
-						,(if number (string-append file (number->string number)) file)
-						,(if number (cons key number) key)) #f #t layout))
-					   reversed-movements))x)
-			     (ly:book-process 
-			      (apply ly:make-book partpap head-module music) 
-			      partpap 
-			      layout
-			      filename)))))))
-
-% Create parallel music or a specified context for a list of instrument specifications
-#(define (ly-score:make-music instruments folder is-transposed? is-full-score?)
-   (let ((music (ly-score:make-parallel-staves (cddr instruments) folder is-transposed? is-full-score?)))
-     (if (eq? (car instruments) 'Parallel) music 
-	 (context-spec-music music (car instruments) (cadr instruments)))))
-
-% Create an individual staff from an instrument specification
-#(define (ly-score:make-staff instrument folder is-transposed? is-full-score?)
-   (if (pair? instrument)
-       (if (pair? (cdr instrument))
-	   (((ly-score:instrument-defs-lookup (car instrument)) 'combine) folder (cdr instrument) is-transposed? is-full-score?)
-	   (((ly-score:instrument-defs-lookup (car instrument)) 'staff) folder (cdr instrument) is-transposed? is-full-score?))
-       (((ly-score:instrument-defs-lookup instrument) 'staff) folder #f is-transposed? is-full-score?)))
-
-% Create parallel music for a list of instrument specifications
-#(define (ly-score:make-parallel-staves instruments folder is-transposed? is-full-score?)
-   (make-simultaneous-music 
-    (filter (lambda (el) (not (null? el))) 
-	    (map (lambda (instrument)
-		   (if (list? instrument)
-		       (ly-score:make-music instrument folder is-transposed? is-full-score?)
-		       (ly-score:make-staff instrument folder is-transposed? is-full-score?))) instruments))))
-
-#(define (ly-score:make-metered-music folder instruments is-full-score? is-transposed?)
-   (let* ((my-time-signature (ly-score:time-signature folder is-full-score?))
-	  (my-music-timeless (ly-score:make-music instruments folder is-transposed? is-full-score?))
-	  (my-length (ly:music-length my-time-signature))
-	  (my-music-with-time 
-           (if (and (= (ly:moment-main-numerator (ly:music-length my-music-timeless)) 0) (not is-full-score?))
-	       (ly-score:tacet-staff) my-music-timeless))
-	  (my-music (make-simultaneous-music (list my-time-signature my-music-with-time))))
-     my-music))
-
-% Create a score for a given instrument specification, folder, and movement title
-#(define (ly-score:make-score folder title instruments is-full-score? is-transposed? layout) 
-   (if (not (file-exists? folder))
-       (begin
-	 (format #t "Creating directory: ~a\n" folder)
-	 (mkdir folder)))
-   (let* ((my-music (ly-score:make-metered-music folder instruments is-full-score? is-transposed?))
-	  (my-midi (ly:output-def-clone #{ \midi {} #}))
-	  (my-score #{ \score { $my-music } #}))
-     (ly:score-add-output-def! my-score my-midi)
-     (ly:score-set-header! my-score (ly-score:alist->module title))
-     (ly:score-add-output-def! my-score (ly:output-def-clone layout))
-     my-score))
-
-% Recursive function to go through the instrument specification and extract parts
-#(define (ly-score:process-part prefix head reversed-movements instrument layout)
-  (if (list? instrument)
-      (for-each (lambda (instr) 
-		  (ly-score:process-part prefix head reversed-movements instr layout)) (cddr instrument))
-      (if (pair? instrument)
-	  (if (pair? (cdr instrument))
-	      (map (lambda (instrument-number) 
-		     (((ly-score:instrument-defs-lookup (car instrument)) 'make-part) 
-		      prefix 
-		      head 
-		      reversed-movements 
-		      instrument-number
-		      layout)) 
-		   (list (cadr instrument) (cddr instrument)))
-	      (((ly-score:instrument-defs-lookup (car instrument)) 'make-part)
-	       prefix 
-	       head 
-	       reversed-movements 
-	       (cdr instrument)
-	       layout))
-	  (((ly-score:instrument-defs-lookup instrument) 'make-part) prefix head reversed-movements #f layout))))
-
-
-#(define* (ly-score:process prefix scorehead parthead movements instruments #:key 
-			    transpose? 
-			    include-parts? 
-			    include-score? 
-			    (frontmatter #{ \markuplist {} #} )
-			    (score-layout #{ \layout {} #})
-			    (part-layout #{ \layout {} #}))
-  (if include-score?
-      (with-fluids ((ignore-cues? #t))
-	(let ((score-book #{ \book { \paper { \scorepap } \markuplist { #frontmatter } } #}))
-	  (for-each (lambda (el) 
-		      (let ((score (ly-score:make-score (car el) (cadr el) instruments #t transpose? score-layout)))
-			(ly:book-add-score! score-book score)))
-		    (reverse movements))
-	  (ly:book-process score-book scorepap score-layout prefix))))
-  (if include-parts? 
-      (ly-score:process-part prefix parthead (reverse movements) instruments part-layout)))

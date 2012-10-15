@@ -1,25 +1,28 @@
 \version "2.16.0"
-#(define score-paper-size "letter")
-#(define part-paper-size "letter")
 
 \include "ly-score.ly"
+\include "ly-score-instruments.ly"
 \include "ly-score-time-sig.ly"
 
-#(ly-score:process "sample"
-  '()
-  '()
-  '(("sample" ()))
-  '(Parallel
-    "Violins"
-     time-sig
-     (violin . 1)
-     (violin . 2))
-#:include-score? #t
-#:score-layout #{ \layout { 
-  \timeSigLayout 
-  \context {
-    \Score
-    \accepts TimeSig
-  }
-} #}
-#:part-layout #{ \layout { \timeSigLayout } #})
+#(ly-score:process 
+  "sample" 
+  `((title "Sample"))
+  `((title "Sample Part"))
+  `(("parts" ()))
+  '(StaffGroup "Main Score" 
+    time-sig
+    piano
+    percussion
+    (violin . "I")
+    (violin . "II"))
+  #:transpose? #f
+  #:include-score? #t
+  #:include-parts? #t
+  #:score-layout #{ 
+  \layout { 
+    \timeSigLayout
+    \context {
+      \StaffGroup
+      \accepts TimeSig
+    }
+} #})

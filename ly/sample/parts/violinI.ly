@@ -1,0 +1,1 @@
+\relative c' { c'4 d e f | g a b c }
