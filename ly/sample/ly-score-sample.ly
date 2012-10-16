@@ -8,13 +8,14 @@
   "sample" 
   `((title "Sample"))
   `((title "Sample Part"))
-  `(("parts" ()))
+  `(("parts" ((piece "Movement 1"))))
   '(StaffGroup "Main Score" 
     time-sig
     piano
     percussion
-    (violin . "I")
-    (violin . "II"))
+    (StaffGroup "violins"
+      (violin . "I")
+      (violin . "II")))
   #:transpose? #f
   #:include-score? #t
   #:include-parts? #t
