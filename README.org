@@ -111,9 +111,9 @@ See the sample directory for a sample instrument specification.
   ((percussion . 3) . ((paper . ,#{ \paper { \bigpartpap } #}))))
 #+END_SRC
 *** File Structure
-ly-score automatically creates all the subsidary folders *.ly files
-needed to create the score. A file for each part will be created in a
-folder for each movement. Additionally, a file called
+ly-score automatically creates all the subsidary folders and *.ly
+files needed to create the score. A file for each part will be created
+in a folder for each movement. Additionally, a file called
 "time_signature.ly" will be created in each folder. Use this file for
 score-global information like time signature changes and rehearsal
 marks.  You do not need to assign the music expression in the file to
