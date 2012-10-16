@@ -16,7 +16,7 @@ structure used in your LilyPond project to make configuration simpler.
 
 ** ly-score:process
 The main entry point for ly-score is the function
-*ly-score:process*. It has accepts quite a few arguments:
+*ly-score:process*. It accepts quite a few arguments:
 
 *** Required Arguments
 
