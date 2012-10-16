@@ -1,4 +1,6 @@
-* Here are some utils for LilyPond. It basically has two parts.
+#+AUTHOR: Mark Witmer
+
+* LyUtil
 
 ** stdlib.ly
 This is just a pretentiously named grab-bag of handy little LilyPond
