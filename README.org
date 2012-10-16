@@ -1,0 +1,63 @@
+#+TITLE: LyUtil
+
+Here are some utils for LilyPond. It basically has two parts.
+
+* stdlib.ly
+This is just a grab-bag of handy little LilyPond extensions
+and shortcuts I've assembled. You may or may not find it useful.
+
+* ly-score
+
+ly-score and its companion files make up a score/part generator that
+takes a lot of the boilerplate out of making orchestral scores. It has
+a few things common with the apparently defunct [[http://wiki.kainhofer.com/lilypond/orchestrallily][OrchestralLily]]
+project, but enforces some consistent rules about the folder and file
+structure used in your LilyPond project to make configuration simpler.
+
+The main entry point for ly-score is the function
+*ly-score:process*. It has accepts quite a few arguments:
+
+** Required Arguments
+
+- *prefix* /string/: The prefix for all the output files. The score
+  will be named "/prefix/.pdf" and the parts will be named
+  "/prefix/-/instrument-name/{/number/}.pdf"
+- *scorehead* /alist/: An associative list of header attributes and
+  values to use in the score's header block. Values can be markup or
+  strings.
+- *parthead* /alist/: Like *scorehead*, but applies to all the
+  parts. Each part will also include a header element specifying the
+  instrument (and number, if there is one specified). See below for
+  information about how to customize an individual part's header.
+- *movements* /alist/: An associative list of movements for the
+  piece. The keys in the alist are strings that correspond to the
+  folders where the music for each movement is stored. The values in
+  the alist are alists of header attributes and values for each
+  movement.
+- *instruments* /list/: A list specifying all of the instruments that
+  play in the piece and how they are grouped. The list follows this
+  simple grammar:
+
+<instrument-specification> ::= (<context-name> <string> <intrument-group>+)
+<instrument-group> ::= <instrument-specification> | <instrument>
+<context-name> ::= '<lilypond context name> | 'Parallel
+<instrument> ::= <symbol> | (<symbol> . <datum>)> | (<symbol> . (<datum> . <datum>))
+
+<lilypond context name> would be something like StaffGroup,
+PianoStaff, GrandStaff, and so on. 'Parallel creates parallel staves
+with no added context.
+
+The <string> in each <instrument-specification> is the name that will
+be given to the context it creates.
+
+<instrument> has three forms:
+
+- The symbol by itself is just the key for an instrument, such as
+  'violin, or 'clarinet-in-b-flat. 
+- The simple pair can be used when there are multiple parts on the
+  instrument; eg. (violin . "I") or (bassoon . 2). Any datum that can
+  be formated meaningfully by Guile's /format/ method can be used.
+- The nested pair will combine two parts into one staff in the score,
+  while generating two separate part files.
+
+See the sample directory for a sample instrument specification.
