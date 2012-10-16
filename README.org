@@ -39,8 +39,11 @@ The main entry point for ly-score is the function
   simple grammar:
 
 <instrument-specification> ::= (<context-name> <string> <intrument-group>+)
+
 <instrument-group> ::= <instrument-specification> | <instrument>
+
 <context-name> ::= '<lilypond context name> | 'Parallel
+
 <instrument> ::= <symbol> | (<symbol> . <datum>)> | (<symbol> . (<datum> . <datum>))
 
 <lilypond context name> would be something like StaffGroup,
