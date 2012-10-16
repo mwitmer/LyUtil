@@ -145,7 +145,8 @@ so if you want something in your piece that only occurs in a part and
 not in the score, use \tag #'part {...}. Likewise when ly-score
 creates a score, it does so with the tag #'score. *\partBreak* and
 *\noPartBreak* are defined for managing page (not system!) breaks in
-parts.
+parts. But before you use those, check out [[http://lilypond.org/doc/v2.16/Documentation/internals/page_005fturn_005fengraver][Page_turn_engraver]], which
+might do what you're looking for already.
 *** Cues
 I also included a simplified method for including cues in your
 file. There's no need to use \addQuote anywhere in your score; just
