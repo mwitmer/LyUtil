@@ -77,18 +77,19 @@ noPartBreak = \tag #'part {\noPageBreak}
 
 #(define (format-instrument-with-number instrument number)
   (cond
-   ((pair? number) (format #f "~a ~a, ~a" instrument (car number) (cdr number)))
-   (number (format #f "~a ~a" instrument number))
-   (else instrument)))
+   ((pair? number)
+    #{ \markup \secondaryfont { $instrument $(format #f "~a~a~a~a" " " (car number) ", " (cdr number)) }  #}) 
+   (number #{ \markup \secondaryfont { $instrument $(format #f "~a~a" " " number) }  #}) 
+   (else #{ \markup \secondaryfont $instrument #})))
 
 #(define* (create-with-clause instrument-definition #:optional number)
   (let ((basic-instrument-name (assq-ref instrument-definition 'instrumentName))
 	(basic-short-instrument-name (assq-ref instrument-definition 'shortInstrumentName)))
    #{ \with {
         instrumentName = 
-	  \markup \secondaryfont $(format-instrument-with-number basic-instrument-name number)
+		       $(format-instrument-with-number basic-instrument-name number)
         shortInstrumentName = 
-	  \markup \secondaryfont $(format-instrument-with-number basic-short-instrument-name number)
+	$(format-instrument-with-number basic-short-instrument-name number)
         midiInstrument = $(assq-ref instrument-definition 'midiInstrument)
       } 
     #}))
@@ -102,11 +103,10 @@ noPartBreak = \tag #'part {\noPageBreak}
 	      (key-with-number (format #f "~a~a" key (if number number "")))
 	      (filename (format #f "~a-~a" prefix key-with-number))
 	      (head-module (ly-score:alist->module head)))
-
 	 (module-define! head-module 'instrument 
 			 (format-instrument-with-number (assq-ref instrument-def 'instrumentName) number))
 	 (with-fluids ((ly-score:part-header head-module))
-	   (let* ((book #{ \book { \paper { } } #} )
+	   (let* ((book #{ \book { \paper { $paper } } #} )
 		  (scores 
 		   (map (lambda (el)
 			  (ly-score:make-score 
@@ -135,7 +135,9 @@ noPartBreak = \tag #'part {\noPageBreak}
 	 (let ((music #{
 			{
 			 #(set-accidental-style 'modern-cautionary)
-			 \clef $(assq-ref instrument-definition 'clef)
+			 \clef $(if (and transpose? (assq-ref instrument-definition 'transposed-clef))
+				    (assq-ref instrument-definition 'transposed-clef)
+				    (assq-ref instrument-definition 'clef))
 			 \compressFullBarRests
 			 $(if (and transpose? transposition)
 			      (ly:music-transpose music transposition)
@@ -144,12 +146,12 @@ noPartBreak = \tag #'part {\noPageBreak}
 			#}))
 	   (if drum-staff?
 		#{
-		  \new DrumStaff = $staff-name \with { $(if (not no-with-clause?) 
+		  \new DrumStaff = $staff-name \with { $(if (and is-full-score? (not no-with-clause?)) 
 							    (create-with-clause instrument-definition number)) } 
 		  $music
 		  #} 
 		#{
-		  \new Staff = $staff-name \with { $(if (not no-with-clause?) 
+		  \new Staff = $staff-name \with { $(if (and is-full-score? (not no-with-clause?)) 
 							(create-with-clause instrument-definition number)) } 
 		  $music
 		  #})))))
@@ -230,23 +232,40 @@ noPartBreak = \tag #'part {\noPageBreak}
      (ly:score-add-output-def! my-score (ly:output-def-clone layout))
      my-score))
 
-% Recursive function to go through the instrument specification and extract parts
-#(define (ly-score:process-part prefix head movements instrument layout paper)
-  (if (list? instrument)
-      (for-each 
-       (lambda (instr) 
-	 (ly-score:process-part prefix head movements instr layout paper)) (cddr instrument))
-      (if (pair? instrument)
-	  (let ((instrument-def (assoc-ref custom-instrument-definitions (symbol->string (car instrument)))))
-	    (if (pair? (cdr instrument))
-		(map 
-		 (lambda (number) 
-		   (create-part prefix head instrument-def (reverse movements) number paper layout))
-		     (list (cadr instrument) (cddr instrument)))
-		(create-part prefix head instrument-def (reverse movements) (cdr instrument) 
-			     paper layout)))
-	  (let ((instrument-def (assoc-ref custom-instrument-definitions (symbol->string instrument))))
-	    (create-part prefix head instrument-def (reverse movements) #f paper layout)))))
+#(define (ly-score:process-part prefix head movements instrument default-layout default-paper part-overrides)
+   (let ((find-override (lambda (key instr default)
+				   (let ((override 
+					  (if
+					   (assoc-ref part-overrides instr)
+					   (assoc-ref (assoc-ref part-overrides instr) key)
+					   #f)))
+				     (if override (begin
+						    (format #t "Using override for ~a ~a.\n" key instrument)
+						    override) 
+					 (begin
+					   (format #t "Using default for ~a ~a.\n" key instrument)
+					   default))))))
+    (if (list? instrument)
+	(for-each 
+	 (lambda (instr) 
+	   (ly-score:process-part prefix head movements instr default-layout default-paper part-overrides)) 
+	 (cddr instrument))
+	(if (pair? instrument)
+	    (let ((instrument-def (assoc-ref custom-instrument-definitions (symbol->string (car instrument)))))
+	      (if (pair? (cdr instrument))
+		  (map 
+		   (lambda (number) 
+		     (create-part prefix head instrument-def (reverse movements) number 
+				  (find-override 'paper (cons (car instrument) number) default-paper) 
+				  (find-override 'layout (cons (car instrument) number) default-layout)))
+		   (list (cadr instrument) (cddr instrument)))
+		  (create-part prefix head instrument-def (reverse movements) (cdr instrument) 
+			       (find-override 'paper instrument default-paper) 
+			       (find-override 'layout instrument default-layout))))
+	    (let ((instrument-def (assoc-ref custom-instrument-definitions (symbol->string instrument))))
+	      (create-part prefix head instrument-def (reverse movements) #f 
+			   (find-override 'paper instrument default-paper) 
+			   (find-override 'layout instrument default-layout)))))))
 
 #(define ignore-cues? (make-fluid))
 
@@ -255,6 +274,7 @@ noPartBreak = \tag #'part {\noPageBreak}
 			    (score-size 12) (part-size 24)
 			    (score-paper #{ \paper {} #}) (part-paper #{ \paper {} #})
 			    (score-layout #{ \layout {} #}) (part-layout #{ \layout {} #})
+			    (part-overrides '())
 			    (frontmatter #{ \markuplist {} #}))
    (set-paper-staff-size score-paper score-size)
    (set-paper-staff-size part-paper part-size)
@@ -270,7 +290,7 @@ noPartBreak = \tag #'part {\noPageBreak}
 	   (ly:book-set-header! score-book (ly-score:alist->module scorehead))
 	   (ly:book-process score-book score-paper score-layout prefix))))
    (if include-parts? 
-       (ly-score:process-part prefix parthead movements instruments part-layout part-paper)))
+       (ly-score:process-part prefix parthead movements instruments part-layout part-paper part-overrides)))
 
 #(define custom-instrument-definitions '())
 
@@ -320,7 +340,7 @@ quickClefCue = #(define-music-function
        (let* ((instrument-def (assoc-ref custom-instrument-definitions (symbol->string key)))
 	      (folder (fluid-ref current-folder))
 	      (name (assq-ref instrument-def 'instrumentName))
-	      (quote-name (format-instrument-with-number (assq-ref instrument-def 'key) number))
+	      (quote-name (format "~a~a" (assq-ref instrument-def 'key) (if number number "")))
 	      (quotes (eval 'musicQuotes (current-module))))
 	 (if (not (hash-ref quotes quote-name))
 	     (let* ((no-part-music 
