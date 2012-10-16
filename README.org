@@ -5,7 +5,14 @@
 ** stdlib.ly
 This is just a pretentiously named grab-bag of handy little LilyPond
 extensions and shortcuts I've assembled. You may or may not find it
-useful.
+useful. Most of them are self-explanatory, but do check out
+*bottomBarNumbers* if you're doing an orchestra score and want a bar
+number engraved under every bar. It's a pretty good solution to that
+problem, but will require you to put a transparent barline in the
+middle of every bar of your piece, which can wreak havoc with
+beaming. *bottomBarSpacer* is a quick way to create the necessary
+split bars. If there's a way to consistently place a bar number in the
+middle of a measure without any bar line there, please let me know!
 
 ** ly-score
 
