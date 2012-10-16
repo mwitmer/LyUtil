@@ -3,8 +3,9 @@
 Here are some utils for LilyPond. It basically has two parts.
 
 * stdlib.ly
-This is just a grab-bag of handy little LilyPond extensions
-and shortcuts I've assembled. You may or may not find it useful.
+This is just a pretentiously named grab-bag of handy little LilyPond
+extensions and shortcuts I've assembled. You may or may not find it
+useful.
 
 * ly-score
 
