@@ -8,9 +8,9 @@ Here are some LilyPond extensions I have written.
 
 ly-score and its companion files make up a score/part generator that
 takes a lot of the boilerplate out of making orchestral scores. It has
-a few things common with the apparently defunct [[http://wiki.kainhofer.com/lilypond/orchestrallily][OrchestralLily]]
-project, but enforces some consistent rules about the folder and file
-structure used in your LilyPond project to make configuration simpler.
+a few things common with the [[http://wiki.kainhofer.com/lilypond/orchestrallily][OrchestralLily]] project, but enforces some
+consistent rules about the folder and file structure used in your
+LilyPond project to make configuration simpler.
 
 *** ly-score:process
 The main entry point for ly-score is the function
