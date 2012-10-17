@@ -1,6 +1,7 @@
 %%%% -*- Mode: Scheme -*-
 
 \version "2.16.0"
+\include "articulate.ly"
 
 #(use-modules (ice-9 format))
 
@@ -138,7 +139,7 @@ noPartBreak = \tag #'part {\noPageBreak}
 			 \clef $(if (and transpose? (assq-ref instrument-definition 'transposed-clef))
 				    (assq-ref instrument-definition 'transposed-clef)
 				    (assq-ref instrument-definition 'clef))
-			 \compressFullBarRests
+			 \compressFullBarRests 
 			 $(if (and transpose? transposition)
 			      (ly:music-transpose music transposition)
 			      music)

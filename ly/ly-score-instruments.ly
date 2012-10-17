@@ -4,6 +4,7 @@
 #(treble-clef-instrument
   `((instrumentName . "Piccolo")
     (shortInstrumentName . "Picc.")
+    (midiInstrument . "flute")
     (instrumentCueName . "piccolo")))
 #`((staff-generator . ,staff-creator)
    (clef . "treble")
@@ -13,6 +14,7 @@
 #(treble-clef-instrument
   `((instrumentName . "Flute")
     (shortInstrumentName . "Fl.")
+    (midiInstrument . "flute")
     (instrumentCueName . "flute")))
 #`((staff-generator . ,staff-creator)
    (clef . "treble")
@@ -22,6 +24,7 @@
 #(treble-clef-instrument
   `((instrumentName . "Oboe")
     (shortInstrumentName . "Ob.")
+    (midiInstrument . "oboe")
     (instrumentCueName . "oboe")))
 #`((staff-generator . ,staff-creator)
    (clef . "treble")
@@ -32,6 +35,7 @@
   `((instrumentName . "English Horn")
     (instrumentTransposition . ,(ly:make-pitch 0 4 0))
     (shortInstrumentName . "E.H.")
+    (midiInstrument . "oboe")
     (instrumentCueName . "english horn")))
 #`((staff-generator . ,staff-creator)
    (clef . "treble")
@@ -42,6 +46,7 @@
   `((instrumentName . ,#{ \markup{ B \flat " " Clarinet } #})
     (instrumentTransposition . ,(ly:make-pitch 0 1 0))
     (shortInstrumentName . "Cl.")
+    (midiInstrument . "clarinet")
     (instrumentCueName . "clarinet")))
 #`((staff-generator . ,staff-creator)
    (clef . "treble")
@@ -52,6 +57,7 @@
   `((instrumentName . "Bass Clarinet")
     (instrumentTransposition . ,(ly:make-pitch 1 1 0))
     (shortInstrumentName . "B. Cl.")
+    (midiInstrument . "clarinet")
     (instrumentCueName . "bass clarinet")))
 #`((staff-generator . ,staff-creator)
    (clef . "bass")
@@ -62,6 +68,7 @@
 #(bass-clef-instrument
   `((instrumentName . "Bassoon")
     (shortInstrumentName . "Bs.")
+    (midiInstrument . "bassoon")
     (instrumentCueName . "bassoon")))
 #`((staff-generator . ,staff-creator)
    (clef . "bass")
@@ -71,6 +78,7 @@
 #(bass-clef-instrument
   `((instrumentName . "Contrabassoon")
     (shortInstrumentName . "Cbn.")
+    (midiInstrument . "bassoon")
     (instrumentCueName . "contrabassoon")))
 #`((staff-generator . ,staff-creator)
    (clef . "bass")
@@ -81,6 +89,7 @@
   `((instrumentName . "Horn")
     (instrumentTransposition . ,(ly:make-pitch 0 4 0))
     (shortInstrumentName . "Hn.")
+    (midiInstrument . "french horn")
     (instrumentCueName . "horn")))
 #`((staff-generator . ,staff-creator)
    (clef . "treble")
