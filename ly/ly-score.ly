@@ -8,7 +8,7 @@
    (interpret-markup layout props (markup text)))
 
 #(define-markup-command (secondaryfont layout props text) (markup?) 
-   (interpret-markup layout props (markup text)))
+n   (interpret-markup layout props (markup text)))
 
 partBreak = \tag #'part {\pageBreak}
 noPartBreak = \tag #'part {\noPageBreak}
@@ -95,7 +95,7 @@ noPartBreak = \tag #'part {\noPageBreak}
     #}))
 
 #(define* (get-staff-name file-name #:optional number)
-   (format #f "~a~a" file-name (if number number)))
+   (format #f "~a~a" file-name (if number number "")))
 
 #(define (create-part prefix head instrument-def movements number paper layout) 
    (if (not (assq-ref instrument-def 'skip-part?))
@@ -126,11 +126,12 @@ noPartBreak = \tag #'part {\noPageBreak}
 	  (file-name (assq-ref instrument-definition 'key))
 	  (staff-name (get-staff-name file-name number))
 	  (transposition (assq-ref instrument-definition 'instrumentTransposition))
-	  (music (if (pair? number) 
+	  (music (if (pair? number)
 		     #{ \partcombine 
 			$(get-music-from-file file-name folder is-full-score? (car number))
 			$(get-music-from-file file-name folder is-full-score? (cdr number)) #}
 		     (get-music-from-file file-name folder is-full-score? number))))
+     (display staff-name)
      (if (= (ly:moment-main-numerator (ly:music-length music)) 0) #{ #}
 	 (let ((music #{
 			{
