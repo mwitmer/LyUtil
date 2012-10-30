@@ -1,5 +1,51 @@
 \version "2.16.0"
 
+\addCustomInstrumentDefinition #"soprano-saxophone"
+#(treble-clef-instrument
+  `((instrumentName . "Soprano Saxophone")
+    (shortInstrumentName . "S.")
+    (midiInstrument . "soprano sax")
+    (instrumentCueName . "soprano sax")
+    (instrumentTransposition . ,(ly:make-pitch 0 1 0))))
+#`((staff-generator . ,staff-creator)
+   (clef . "treble")
+   (key . soprano-saxophone))
+
+\addCustomInstrumentDefinition #"alto-saxophone"
+#(treble-clef-instrument
+  `((instrumentName . "Alto Saxophone")
+    (shortInstrumentName . "A.")
+    (midiInstrument . "alto sax")
+    (instrumentCueName . "alto sax")
+    (instrumentTransposition . ,(ly:make-pitch 0 5 0))))
+#`((staff-generator . ,staff-creator)
+   (clef . "treble")
+   (key . alto-saxophone))
+
+\addCustomInstrumentDefinition #"tenor-saxophone"
+#(bass-clef-instrument
+  `((instrumentName . "Tenor Saxophone")
+    (shortInstrumentName . "T.")
+    (midiInstrument . "tenor sax")
+    (instrumentCueName . "tenor sax")
+    (instrumentTransposition . ,(ly:make-pitch 1 1 0))))
+#`((staff-generator . ,staff-creator)
+   (clef . "bass")
+   (transposed-clef . "treble")
+   (key . tenor-saxophone))
+
+\addCustomInstrumentDefinition #"baritone-saxophone"
+#(bass-clef-instrument
+  `((instrumentName . "Baritone Saxophone")
+    (shortInstrumentName . "B.")
+    (midiInstrument . "baritone sax")
+    (instrumentCueName . "baritone sax")
+    (instrumentTransposition . ,(ly:make-pitch 1 5 0))))
+#`((staff-generator . ,staff-creator)
+   (clef . "bass")
+   (transposed-clef . "treble")
+   (key . baritone-saxophone))
+
 \addCustomInstrumentDefinition #"piccolo"
 #(treble-clef-instrument
   `((instrumentName . "Piccolo")

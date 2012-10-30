@@ -96,7 +96,7 @@ noPartBreak = \tag #'part {\noPageBreak}
     #}))
 
 #(define* (get-staff-name file-name #:optional number)
-   (format #f "~a~a" file-name (if number number)))
+   (format #f "~a~a" file-name (if number number "")))
 
 #(define (create-part prefix head instrument-def movements number paper layout) 
    (if (not (assq-ref instrument-def 'skip-part?))
@@ -135,7 +135,6 @@ noPartBreak = \tag #'part {\noPageBreak}
      (if (= (ly:moment-main-numerator (ly:music-length music)) 0) #{ #}
 	 (let ((music #{
 			{
-			 #(set-accidental-style 'modern-cautionary)
 			 \clef $(if (and transpose? (assq-ref instrument-definition 'transposed-clef))
 				    (assq-ref instrument-definition 'transposed-clef)
 				    (assq-ref instrument-definition 'clef))
@@ -226,7 +225,7 @@ noPartBreak = \tag #'part {\noPageBreak}
 	 (format #t "Creating directory: ~a\n" folder)
 	 (mkdir folder)))
    (let* ((my-music (ly-score:make-metered-music folder instruments is-full-score? is-transposed?))
-	  (my-midi (ly:output-def-clone #{ \midi {} #}))
+	  (my-midi (ly:output-def-clone #{ \midi { \context { \Voice \remove "Dynamic_performer" }} #}))
 	  (my-score #{ \score { $my-music } #}))
      (if include-midi? (ly:score-add-output-def! my-score my-midi))
      (ly:score-set-header! my-score (ly-score:alist->module header))
