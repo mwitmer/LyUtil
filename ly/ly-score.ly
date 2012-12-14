@@ -199,7 +199,7 @@ noPartBreak = \tag #'part {\noPageBreak}
 #(define (ly-score:make-parallel-staves instruments folder is-transposed? is-full-score?)
    (make-simultaneous-music 
     (filter 
-     (lambda (el) (not (null? el))) 
+     (lambda (el) (not (null? el)))
      (map 
       (lambda (instrument)
 	(if (list? instrument)
@@ -286,7 +286,7 @@ noPartBreak = \tag #'part {\noPageBreak}
 	      (ly:book-add-score! 
 	       score-book 
 	       (ly-score:make-score (car el) (cadr el) instruments #t transpose? score-layout include-midi?)))
-	    (reverse movements))
+	    movements)
 	   (ly:book-set-header! score-book (ly-score:alist->module scorehead))
 	   (ly:book-process score-book score-paper score-layout prefix))))
    (if include-parts? 

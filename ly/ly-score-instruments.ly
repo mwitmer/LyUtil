@@ -23,14 +23,14 @@
    (key . alto-saxophone))
 
 \addCustomInstrumentDefinition #"tenor-saxophone"
-#(bass-clef-instrument
+#(treble-clef-instrument
   `((instrumentName . "Tenor Saxophone")
     (shortInstrumentName . "T.")
     (midiInstrument . "tenor sax")
     (instrumentCueName . "tenor sax")
     (instrumentTransposition . ,(ly:make-pitch 1 1 0))))
 #`((staff-generator . ,staff-creator)
-   (clef . "bass")
+   (clef . "treble")
    (transposed-clef . "treble")
    (key . tenor-saxophone))
 

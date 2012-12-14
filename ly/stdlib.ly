@@ -13,6 +13,9 @@ showRest = #(define-music-function (parser location duration) (ly:duration?)
 	 #{ \once \override Rest #'transparent = ##t
 	 $(make-music 'RestEvent 'duration duration) #})))
 
+growBeamLeft= \override Beam #'grow-direction = #LEFT
+growBeamRight= \override Beam #'grow-direction = #RIGHT
+revertGrowBeam = \revert Beam #'grow-direction
 tempoAdjust = \once \override Score.MetronomeMark #'X-offset = #-3.5
 tempoHidden = \once \override Score.MetronomeMark #'transparent = ##t
 hideNoteHead = \override NoteHead #'transparent = ##t
