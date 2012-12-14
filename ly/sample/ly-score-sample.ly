@@ -12,6 +12,7 @@
   '(StaffGroup "Main Score" 
     time-sig
     piano
+    (oboe . ("I" . "II"))
     percussion
     (StaffGroup "violins"
       (violin . "I")
