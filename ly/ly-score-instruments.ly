@@ -1,51 +1,5 @@
 \version "2.16.0"
 
-\addCustomInstrumentDefinition #"soprano-saxophone"
-#(treble-clef-instrument
-  `((instrumentName . "Soprano Saxophone")
-    (shortInstrumentName . "S.")
-    (midiInstrument . "soprano sax")
-    (instrumentCueName . "soprano sax")
-    (instrumentTransposition . ,(ly:make-pitch 0 1 0))))
-#`((staff-generator . ,staff-creator)
-   (clef . "treble")
-   (key . soprano-saxophone))
-
-\addCustomInstrumentDefinition #"alto-saxophone"
-#(treble-clef-instrument
-  `((instrumentName . "Alto Saxophone")
-    (shortInstrumentName . "A.")
-    (midiInstrument . "alto sax")
-    (instrumentCueName . "alto sax")
-    (instrumentTransposition . ,(ly:make-pitch 0 5 0))))
-#`((staff-generator . ,staff-creator)
-   (clef . "treble")
-   (key . alto-saxophone))
-
-\addCustomInstrumentDefinition #"tenor-saxophone"
-#(treble-clef-instrument
-  `((instrumentName . "Tenor Saxophone")
-    (shortInstrumentName . "T.")
-    (midiInstrument . "tenor sax")
-    (instrumentCueName . "tenor sax")
-    (instrumentTransposition . ,(ly:make-pitch 1 1 0))))
-#`((staff-generator . ,staff-creator)
-   (clef . "treble")
-   (transposed-clef . "treble")
-   (key . tenor-saxophone))
-
-\addCustomInstrumentDefinition #"baritone-saxophone"
-#(bass-clef-instrument
-  `((instrumentName . "Baritone Saxophone")
-    (shortInstrumentName . "B.")
-    (midiInstrument . "baritone sax")
-    (instrumentCueName . "baritone sax")
-    (instrumentTransposition . ,(ly:make-pitch 1 5 0))))
-#`((staff-generator . ,staff-creator)
-   (clef . "bass")
-   (transposed-clef . "treble")
-   (key . baritone-saxophone))
-
 \addCustomInstrumentDefinition #"piccolo"
 #(treble-clef-instrument
   `((instrumentName . "Piccolo")
@@ -87,16 +41,71 @@
    (clef . "treble")
    (key . english-horn))
 
+\addCustomInstrumentDefinition #"clarinet-in-e-flat"
+#(treble-clef-instrument
+  `((instrumentName . ,#{ \markup{ "E" \flat " " "Clarinet" } #})
+    (instrumentTransposition . ,(ly:make-pitch -1 5 0))
+    (shortInstrumentName . ,#{\markup {"Cl." "(" "E" \flat ")" } #})
+    (midiInstrument . "clarinet")
+    (instrumentCueName . "Eb clarinet")))
+#`((staff-generator . ,staff-creator)
+   (clef . "treble")
+   (key . clarinet-in-e-flat))
+
+\addCustomInstrumentDefinition #"clarinet-in-c"
+#(treble-clef-instrument
+  `((instrumentName . ,#{ \markup{ C " " Clarinet } #})
+    (shortInstrumentName . "Cl. (C)")
+    (midiInstrument . "clarinet")
+    (instrumentCueName . "clarinet")))
+#`((staff-generator . ,staff-creator)
+   (clef . "treble")
+   (key . clarinet-in-c))
+
+\addCustomInstrumentDefinition #"clarinet-in-a"
+#(treble-clef-instrument
+  `((instrumentName . ,#{ \markup{ "Clarinet in A" } #})
+    (instrumentTransposition . ,(ly:make-pitch 0 2 -1/2))
+    (shortInstrumentName . "Cl. (A)")
+    (midiInstrument . "clarinet")
+    (instrumentCueName . "clarinet")))
+#`((staff-generator . ,staff-creator)
+   (clef . "treble")
+   (key . clarinet-in-a))
+
 \addCustomInstrumentDefinition #"clarinet-in-b-flat"
 #(treble-clef-instrument
   `((instrumentName . ,#{ \markup{ B \flat " " Clarinet } #})
     (instrumentTransposition . ,(ly:make-pitch 0 1 0))
-    (shortInstrumentName . "Cl.")
+    (shortInstrumentName . "Cl. (B)" )
     (midiInstrument . "clarinet")
     (instrumentCueName . "clarinet")))
 #`((staff-generator . ,staff-creator)
    (clef . "treble")
    (key . clarinet-in-b-flat))
+
+\addCustomInstrumentDefinition #"basset-horn"
+#(treble-clef-instrument
+  `((instrumentName . "Basset Horn in F")
+    (instrumentTransposition . ,(ly:make-pitch 0 4 0))
+    (shortInstrumentName . "B.H.")
+    (midiInstrument . "clarinet")
+    (instrumentCueName . "basset horn")))
+#`((staff-generator . ,staff-creator)
+   (clef . "treble")
+   (key . basset-horn))
+
+\addCustomInstrumentDefinition #"alto-clarinet"
+#(treble-clef-instrument
+  `((instrumentName . ,#{ \markup{ Alto " " Clarinet } #})
+    (instrumentTransposition . ,(ly:make-pitch 0 5 0))
+    (shortInstrumentName . "A. Cl.")
+    (midiInstrument . "clarinet")
+    (instrumentCueName . "alto clarinet")))
+#`((staff-generator . ,staff-creator)
+   (clef . "treble")
+   (key . alto-clarinet))
+
 
 \addCustomInstrumentDefinition #"bass-clarinet"
 #(bass-clef-instrument
@@ -141,6 +150,16 @@
    (clef . "treble")
    (key . horn))
 
+\addCustomInstrumentDefinition #"trumpet-in-b-flat"
+#(treble-clef-instrument
+  `((instrumentName . ,#{ \markup{ B \flat " " Trumpet } #})
+    (instrumentTransposition . ,(ly:make-pitch 0 1 0))
+    (shortInstrumentName . "Tr.")
+    (instrumentCueName . "trumpet")))
+#`((staff-generator . ,staff-creator)
+   (clef . "treble")
+   (key . trumpet-in-b-flat))
+
 \addCustomInstrumentDefinition #"trumpet-in-c"
 #(treble-clef-instrument
   `((instrumentName . "C Trumpet")
@@ -149,6 +168,16 @@
 #`((staff-generator . ,staff-creator)
    (clef . "treble")
    (key . trumpet-in-c))
+
+\addCustomInstrumentDefinition #"trumpet-in-d"
+#(treble-clef-instrument
+  `((instrumentName . "D Trumpet")
+    (instrumentTransposition . ,(ly:make-pitch -1 6 -1/2))
+    (shortInstrumentName . "Tr. (D)")
+    (instrumentCueName . "trumpet")))
+#`((staff-generator . ,staff-creator)
+   (clef . "treble")
+   (key . trumpet-in-d))
 
 \addCustomInstrumentDefinition #"trombone"
 #(bass-clef-instrument
@@ -167,6 +196,15 @@
 #`((staff-generator . ,staff-creator)
    (clef . "bass")
    (key . bass-trombone))
+
+\addCustomInstrumentDefinition #"euphonium"
+#(bass-clef-instrument
+  `((instrumentName . "Euphonium")
+    (shortInstrumentName . "Eup.")
+    (instrumentCueName . "euphonium")))
+#`((staff-generator . ,staff-creator)
+   (clef . "bass")
+   (key . euphonium))
 
 \addCustomInstrumentDefinition #"tuba"
 #(bass-clef-instrument
