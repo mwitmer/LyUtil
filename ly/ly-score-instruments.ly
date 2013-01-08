@@ -244,6 +244,7 @@
 #`((staff-generator . ,piano-staff-creator)
    (key . piano)
    (left-definition . ((clef . "bass") (key . piano-left)))
+   (dynamic-definition . ((key . piano-dynamics)))
    (right-definition . ((clef . "treble") (key . piano-right))))
 
 \addCustomInstrumentDefinition #"harp"

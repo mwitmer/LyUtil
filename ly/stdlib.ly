@@ -13,6 +13,7 @@ showRest = #(define-music-function (parser location duration) (ly:duration?)
 	 #{ \once \override Rest #'transparent = ##t
 	 $(make-music 'RestEvent 'duration duration) #})))
 
+ignoreCollision = \once\override NoteColumn.ignore-collision = ##t
 growBeamLeft= \override Beam #'grow-direction = #LEFT
 growBeamRight= \override Beam #'grow-direction = #RIGHT
 revertGrowBeam = \revert Beam #'grow-direction

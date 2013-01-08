@@ -119,7 +119,7 @@ noPartBreak = \tag #'part {\noPageBreak}
 	     (ly:book-process book paper layout filename))))))
 
 #(define* (staff-creator instrument-definition-or-name folder number transpose? is-full-score? 
-			#:key no-with-clause? drum-staff?)
+			#:key no-with-clause? drum-staff? dynamic-staff?)
    (let* ((instrument-definition 
 	   (if (list? instrument-definition-or-name) 
 	       instrument-definition-or-name 
@@ -133,28 +133,30 @@ noPartBreak = \tag #'part {\noPageBreak}
 			$(get-music-from-file file-name folder is-full-score? (cdr number)) #}
 		     (get-music-from-file file-name folder is-full-score? number))))
      (if (= (ly:moment-main-numerator (ly:music-length music)) 0) #{ #}
-	 (let ((music #{
-			{
-			 \clef $(if (and transpose? (assq-ref instrument-definition 'transposed-clef))
-				    (assq-ref instrument-definition 'transposed-clef)
-				    (assq-ref instrument-definition 'clef))
-			 \compressFullBarRests 
-			 $(if (and transpose? transposition)
-			      (ly:music-transpose music transposition)
-			      music)
-			 } 
-			#}))
-	   (if drum-staff?
-		#{
-		  \new DrumStaff = $staff-name \with { $(if (and is-full-score? (not no-with-clause?)) 
-							    (create-with-clause instrument-definition number)) } 
-		  $music
-		  #} 
-		#{
-		  \new Staff = $staff-name \with { $(if (and is-full-score? (not no-with-clause?)) 
-							(create-with-clause instrument-definition number)) } 
-		  $music
-		  #})))))
+	 (let ((music (if dynamic-staff? music
+			  #{
+			    {
+			     \clef $(if (and transpose? (assq-ref instrument-definition 'transposed-clef))
+					(assq-ref instrument-definition 'transposed-clef)
+					(assq-ref instrument-definition 'clef))
+			     \compressFullBarRests 
+			     $(if (and transpose? transposition)
+				  (ly:music-transpose music transposition)
+				  music)
+			     } 
+			    #})))
+	   (cond
+	    (drum-staff?
+	     #{
+	       \new DrumStaff = $staff-name \with { $(if (and is-full-score? (not no-with-clause?)) 
+							 (create-with-clause instrument-definition number)) } 
+	       $music
+	       #}) 
+	    (dynamic-staff? #{ \new Dynamics = $staff-name $music #})
+	    (else #{
+		    \new Staff = $staff-name \with { $(if (and is-full-score? (not no-with-clause?)) 
+							  (create-with-clause instrument-definition number)) } $music
+		    #}))))))
 
 #(define (drum-staff-creator instrument-definition-or-name folder number transpose? is-full-score?)
    (staff-creator instrument-definition-or-name folder number transpose? is-full-score? #:drum-staff? #t))
@@ -164,22 +166,27 @@ noPartBreak = \tag #'part {\noPageBreak}
 	   (assoc-ref custom-instrument-definitions (symbol->string instrument-definition-name)))
 	  (left-definition (assq-ref instrument-definition 'left-definition))
 	  (right-definition (assq-ref instrument-definition 'right-definition))
+	  (dynamic-definition (assq-ref instrument-definition 'dynamic-definition))
 	  (staff-name (get-staff-name (assq-ref instrument-definition 'key) number))
 	  (left-staff 
 	   (staff-creator left-definition folder number transpose? is-full-score? #:no-with-clause? #t))
 	  (right-staff 
-	   (staff-creator right-definition folder number transpose? is-full-score? #:no-with-clause? #t)))
+	   (staff-creator right-definition folder number transpose? is-full-score? #:no-with-clause? #t))
+	  (dynamic-staff 
+	   (staff-creator dynamic-definition folder number transpose? is-full-score? #:no-with-clause? #t #:dynamic-staff? #t)))
+
      (if (and
 	  (= (ly:moment-main-numerator (ly:music-length right-staff)) 0)
 	  (= (ly:moment-main-numerator (ly:music-length left-staff)) 0)) #{ #}
-	 #{
-	   \new PianoStaff = $staff-name \with { $(create-with-clause instrument-definition number) } 
-	   {
-	    <<
-	      $right-staff
-	      $left-staff
-	    >>
-	   } #})))
+	  #{
+	    \new PianoStaff = $staff-name \with { $(create-with-clause instrument-definition number) } 
+	    {
+	     <<
+	     $right-staff
+	     $dynamic-staff
+	     $left-staff
+	     >>
+	     } #})))
        
 #(define (create-instrument-staff instrument folder number transpose? is-full-score?)
    (let ((instrument-def (assoc-ref custom-instrument-definitions (symbol->string instrument))))
