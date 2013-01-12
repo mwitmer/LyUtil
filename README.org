@@ -186,3 +186,8 @@ middle of every bar of your piece, which can wreak havoc with
 beaming. *bottomBarSpacer* is a quick way to create the necessary
 split bars. If there's a way to consistently place a bar number in the
 middle of a measure without any bar line there, please let me know!
+
+** vibrato.ly
+
+An experimental vibrato marking that can replace regular trills with
+the *\vib* function. See the file for more information.
