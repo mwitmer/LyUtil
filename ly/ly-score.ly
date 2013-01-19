@@ -132,7 +132,6 @@ noPartBreak = \tag #'part {\noPageBreak}
 			$(get-music-from-file file-name folder is-full-score? (car number))
 			$(get-music-from-file file-name folder is-full-score? (cdr number)) #}
 		     (get-music-from-file file-name folder is-full-score? number))))
-     (display staff-name)
      (if (= (ly:moment-main-numerator (ly:music-length music)) 0) #{ #}
 	 (let ((music (if dynamic-staff? music
 			  #{
@@ -210,11 +209,14 @@ noPartBreak = \tag #'part {\noPageBreak}
      (lambda (el) (not (null? el)))
      (map 
       (lambda (instrument)
-	(if (list? instrument)
-	    (ly-score:make-music instrument folder is-transposed? is-full-score?)
-	    (if (pair? instrument) 
-		(create-instrument-staff (car instrument) folder (cdr instrument) is-transposed? is-full-score?)
-		(create-instrument-staff instrument folder #f is-transposed? is-full-score?))))
+	(cond
+	 ((ly:music? instrument)
+	  instrument)
+	 ((list? instrument) 
+	  (ly-score:make-music instrument folder is-transposed? is-full-score?))
+	 ((pair? instrument) 
+	  (create-instrument-staff (car instrument) folder (cdr instrument) is-transposed? is-full-score?))
+	 (else (create-instrument-staff instrument folder #f is-transposed? is-full-score?))))
 	  instruments))))
 
 #(define (ly-score:make-metered-music folder instruments is-full-score? is-transposed?)

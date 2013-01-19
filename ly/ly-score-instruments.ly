@@ -255,4 +255,5 @@
 #`((staff-generator . ,piano-staff-creator)
    (key . harp)
    (left-definition . ((clef . "bass") (key . harp-left)))
+   (dynamic-definition . ((key . harp-dynamics)))
    (right-definition . ((clef . "treble") (key . harp-right))))
