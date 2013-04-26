@@ -145,6 +145,7 @@
 #(treble-clef-instrument
   `((instrumentName . "C Trumpet")
     (shortInstrumentName . "Tr.")
+    (midiInstrument . "trumpet")
     (instrumentCueName . "trumpet")))
 #`((staff-generator . ,staff-creator)
    (clef . "treble")
@@ -154,6 +155,7 @@
 #(bass-clef-instrument
   `((instrumentName . "Trombone")
     (shortInstrumentName . "Tbn.")
+    (midiInstrument . "trombone")
     (instrumentCueName . "trombone")))
 #`((staff-generator . ,staff-creator)
    (clef . "bass")
@@ -172,6 +174,7 @@
 #(bass-clef-instrument
   `((instrumentName . "Tuba")
     (shortInstrumentName . "Tb.")
+    (midiInstrument . "tuba")
     (instrumentCueName . "tuba")))
 #`((staff-generator . ,staff-creator)
    (clef . "bass")

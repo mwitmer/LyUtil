@@ -235,7 +235,7 @@ noPartBreak = \tag #'part {\noPageBreak}
 	 (format #t "Creating directory: ~a\n" folder)
 	 (mkdir folder)))
    (let* ((my-music (ly-score:make-metered-music folder instruments is-full-score? is-transposed?))
-	  (my-midi (ly:output-def-clone #{ \midi { \context { \Voice \remove "Dynamic_performer" }} #}))
+	  (my-midi (ly:output-def-clone #{ \midi {} #}))
 	  (my-score #{ \score { $my-music } #}))
      (if include-midi? (ly:score-add-output-def! my-score my-midi))
      (ly:score-set-header! my-score (ly-score:alist->module header))
@@ -297,7 +297,12 @@ noPartBreak = \tag #'part {\noPageBreak}
 	       score-book 
 	       (ly-score:make-score (car el) (cadr el) instruments #t transpose? score-layout include-midi?)))
 	    movements)
-	   (ly:book-set-header! score-book (ly-score:alist->module scorehead))
+	   (let ((header-module (ly-score:alist->module scorehead)))
+	     (module-define! header-module 'transposition 
+			     (if transpose?
+				 "Transposed Score"
+				 "Score in C"))
+	     (ly:book-set-header! score-book header-module))
 	   (ly:book-process score-book score-paper score-layout prefix))))
    (if include-parts? 
        (ly-score:process-part prefix parthead movements instruments part-layout part-paper part-overrides)))

@@ -8,7 +8,7 @@ timeSigLayout = \layout {
     \consists "Axis_group_engraver"
     \override TimeSignature #'style = #'numbered
     \override TimeSignature #'break-align-symbol = ##f
-    \override TimeSignature #'font-size = #4
+    \override TimeSignature #'font-size = #10
     \override TimeSignature #'X-offset = #ly:self-alignment-interface::x-aligned-on-self
     \override TimeSignature #'self-alignment-X = #CENTER
     \override TimeSignature #'after-line-breaking = #shift-right-at-line-begin
