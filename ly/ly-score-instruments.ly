@@ -222,7 +222,7 @@
   `((instrumentName . "Timpani")
     (shortInstrumentName . "Timp.")
     (instrumentCueName . "timpani")
-    (midiInstrument . "timpania")))
+    (midiInstrument . "timpani")))
 #`((staff-generator . ,staff-creator)
    (clef . "bass")
    (key . timpani))
