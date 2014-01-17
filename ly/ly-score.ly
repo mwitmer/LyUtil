@@ -144,6 +144,7 @@ noPartBreak = \tag #'part {\noPageBreak}
 			$(get-music-from-file file-name folder is-full-score? (car number))
 			$(get-music-from-file file-name folder is-full-score? (cdr number)) #}
 		     (get-music-from-file file-name folder is-full-score? number))))
+     (display staff-name)
      (if (= (ly:moment-main-numerator (ly:music-length music)) 0) #{ #}
 	 (let ((music (if dynamic-staff? music
 			  #{
