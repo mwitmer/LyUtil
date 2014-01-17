@@ -109,24 +109,23 @@ noPartBreak = \tag #'part {\noPageBreak}
 			 (format-instrument-with-number (assq-ref instrument-def 'instrumentName) number))
 	 (with-fluids ((ly-score:part-header head-module))
            ;;
-           ;; Add graphical and audio scores as separate scores to the book.
-           ;; (This solves problems with midi playback for transposing instruments
-           ;; when using transpose? #t in the main score.)
+           ;; For parts only add the graphical score to the book.
+           ;;
 	   (let* ((book #{ \book { \paper { $paper } } #} )
 		  (scores
 		   (map (lambda (el)
 			  (ly-score:make-layout-score
 			   (car el) (cadr el)
 			   `(Parallel ,key-with-number ,(if number (cons key number) key)) #f #t layout #f))
-			(reverse movements)))
-                  (audio-scores
-                   (map (lambda (mov)
-                          (ly-score:make-audio-score
-                           (car mov) (cadr mov)
-                           `(Parallel ,key-with-number ,(if number (cons key number) key)) #f #t layout #f))
-                           (reverse movements))))
+			(reverse movements))))
+                  ;; (audio-scores
+                  ;;  (map (lambda (mov)
+                  ;;         (ly-score:make-audio-score
+                  ;;          (car mov) (cadr mov)
+                  ;;          `(Parallel ,key-with-number ,(if number (cons key number) key)) #f #t layout #f))
+                  ;;          (reverse movements))))
 	     (map (lambda (score) (ly:book-add-score! book score)) scores)
-	     (map (lambda (audio-score) (ly:book-add-score! book audio-score)) audio-scores)
+	     ;; (map (lambda (audio-score) (ly:book-add-score! book audio-score)) audio-scores)
 	     (ly:book-set-header! book (fluid-ref ly-score:part-header))
              (ly:message "Compiling ~a\n" filename)
 	     (ly:book-process book paper layout filename))))))
@@ -360,7 +359,7 @@ noPartBreak = \tag #'part {\noPageBreak}
               ;; Add graphical and audio scores as separate scores to the book.
               ;; (This solves problems with midi playback for transposing instruments when
               ;;   using transpose? #t in the main score.)
-              (ly:message "\nCompiling music for *** ~a ***\n ~s" (car el) (assoc-ref (second el) 'piece ) )
+              (ly:message "\nCompiling music for *** ~a ***\n ~a"  (car el) (first (assoc-ref (second el) 'piece )) )
 	      (ly:book-add-score!
 	       score-book
 	       (ly-score:make-layout-score
