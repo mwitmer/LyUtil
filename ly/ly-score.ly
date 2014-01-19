@@ -2,7 +2,12 @@
 
 \version "2.16.0"
 \include "articulate.ly"
-
+;;
+;; Fix Issue 9:
+;;	Ensure midi playback is always at concert pitch
+;;	whatever the setting of #include-midi? and
+;;	transpose? parameters to the ly-score:process call.
+;;
 #(use-modules (ice-9 format))
 #(use-modules (srfi srfi-1))
 
@@ -118,14 +123,7 @@ noPartBreak = \tag #'part {\noPageBreak}
 			   (car el) (cadr el)
 			   `(Parallel ,key-with-number ,(if number (cons key number) key)) #f #t layout #f))
 			(reverse movements))))
-                  ;; (audio-scores
-                  ;;  (map (lambda (mov)
-                  ;;         (ly-score:make-audio-score
-                  ;;          (car mov) (cadr mov)
-                  ;;          `(Parallel ,key-with-number ,(if number (cons key number) key)) #f #t layout #f))
-                  ;;          (reverse movements))))
 	     (map (lambda (score) (ly:book-add-score! book score)) scores)
-	     ;; (map (lambda (audio-score) (ly:book-add-score! book audio-score)) audio-scores)
 	     (ly:book-set-header! book (fluid-ref ly-score:part-header))
              (ly:message "Compiling ~a\n" filename)
 	     (ly:book-process book paper layout filename))))))
@@ -253,7 +251,7 @@ noPartBreak = \tag #'part {\noPageBreak}
 #(define (ly-score:check-folder folder)
    ;;
    ;; Utility procedure to check if <folder> exists, if not
-   ;; replace it
+   ;; 	create the folder and report.
    ;;
    (if (not (file-exists? folder))
        (begin
@@ -276,33 +274,21 @@ noPartBreak = \tag #'part {\noPageBreak}
      (ly:score-add-output-def! my-score (ly:output-def-clone layout))
      my-score))
 
-#(define (ly-score:make-audio-score folder header instruments is-full-score? is-transposed? layout include-midi?)
+#(define (ly-score:make-audio-score folder header instruments is-full-score? )
    ;;
    ;; Add music for an audio (midi) score, ignoring transposition if is-transposed? is set.
    ;; This is called as a separate pass from any graphical score processing, in order to allow
    ;; scores with transposed parts to print out correctly, while playback is always at the
    ;; correct pitch.
+   ;; N.B. This procedure is only called if include-midi? is set to #t by the user.
    ;;
    (ly-score:check-folder folder)
    (let* ((my-audio-music (ly-score:make-metered-music folder instruments is-full-score? #f ))
           (my-midi (ly:output-def-clone #{ \midi {} #}))
           (my-audio-score #{ \score { $my-audio-music  } #}))
-     (if include-midi? (ly:score-add-output-def! my-audio-score my-midi))
+     (ly:score-add-output-def! my-audio-score my-midi)
      (ly:score-set-header! my-audio-score (ly-score:alist->module header))
      my-audio-score))
-
-% #(define (ly-score:make-score folder header instruments is-full-score? is-transposed? layout include-midi?)
-%    (if (not (file-exists? folder))
-%        (begin
-% 	 (format #t "Creating directory: ~a\n" folder)
-% 	 (mkdir folder)))
-%    (let* ((my-music (ly-score:make-metered-music folder instruments is-full-score? is-transposed?))
-% 	  (my-midi (ly:output-def-clone #{ \midi {} #}))
-% 	  (my-score #{ \score { $my-music } #}))
-%      (if include-midi? (ly:score-add-output-def! my-score my-midi))
-%      (ly:score-set-header! my-score (ly-score:alist->module header))
-%      (ly:score-add-output-def! my-score (ly:output-def-clone layout))
-%      my-score))
 
 #(define (ly-score:process-part prefix head movements instrument default-layout default-paper part-overrides)
    (let ((find-override (lambda (key instr default)
@@ -359,17 +345,18 @@ noPartBreak = \tag #'part {\noPageBreak}
               ;; Add graphical and audio scores as separate scores to the book.
               ;; (This solves problems with midi playback for transposing instruments when
               ;;   using transpose? #t in the main score.)
-              (ly:message "\nCompiling music for *** ~a ***\n ~a"  (car el) (first (assoc-ref (second el) 'piece )) )
+              (ly:message "\nCompiling music for *** ~a ***\n ~a"
+                          (car el) (first (ly:assoc-get 'piece (second el) "No piece property for score" )) )
 	      (ly:book-add-score!
 	       score-book
 	       (ly-score:make-layout-score
                 (car el) (cadr el) instruments #t transpose? score-layout include-midi?))
-              (ly:book-add-score!
-	       score-book
-	       (ly-score:make-audio-score
-                (car el) (cadr el) instruments #t transpose? score-layout include-midi?))
-              )
-	    movements)
+              (if (include-midi?)
+                  (ly:book-add-score!
+                   score-book
+                   (ly-score:make-audio-score (car el) (cadr el) instruments #t )))
+              )	;; of lamda
+	    movements)	;; end of for-each
 	   (let ((header-module (ly-score:alist->module scorehead)))
 	     (module-define! header-module 'transposition
 			     (if transpose?
