@@ -1,5 +1,5 @@
 \version "2.16.0"
-
+\language "english"
 \addCustomInstrumentDefinition #"piccolo"
 #(treble-clef-instrument
   `((instrumentName . "Piccolo")
@@ -31,6 +31,7 @@
    (clef . "treble")
    (key . alto-flute))
 
+
 \addCustomInstrumentDefinition #"oboe"
 #(treble-clef-instrument
   `((instrumentName . "Oboe")
@@ -56,9 +57,9 @@
 #(treble-clef-instrument
   `((instrumentName . ,#{ \markup{ "E♭" " " "Clarinet" } #})
     (instrumentTransposition . ,(ly:make-pitch -1 5 0))
-    (shortInstrumentName . ,#{ \markup \markup {"Cl.(E♭)" } #})
+    (shortInstrumentName . ,#{\markup {"Cl.(E♭)" } #})
     (midiInstrument . "clarinet")
-    (instrumentCueName . "E♭ clarinet)))
+    (instrumentCueName . "E♭ clarinet")))
 #`((staff-generator . ,staff-creator)
    (clef . "treble")
    (key . clarinet-in-e-flat))
@@ -87,7 +88,7 @@
 \addCustomInstrumentDefinition #"clarinet-in-b-flat"
 #(treble-clef-instrument
   `((instrumentName . ,#{ \markup{ B♭ Clarinet } #})
-    (instrumentTransposition . ,(ly:make-pitch 0 1 0))
+    (instrumentTransposition . ,(ly:make-pitch 0 1 0) )
     (shortInstrumentName . "Cl. (B♭)" )
     (midiInstrument . "clarinet")
     (instrumentCueName . "clarinet")))
@@ -108,7 +109,7 @@
 
 \addCustomInstrumentDefinition #"alto-clarinet"
 #(treble-clef-instrument
-  `((instrumentName . ,#{ \markup{ Alto Clarinet in E♭ } #})
+  `((instrumentName . "Alto Clarinet in E♭")
     (instrumentTransposition . ,(ly:make-pitch 0 5 0))
     (shortInstrumentName . "A. Cl. (E♭)")
     (midiInstrument . "clarinet")
@@ -122,7 +123,7 @@
 #(bass-clef-instrument
   `((instrumentName . "Bass Clarinet in B♭")
     (instrumentTransposition . ,(ly:make-pitch 1 1 0))
-    (shortInstrumentName . B. Cl. (B♭)")
+    (shortInstrumentName . "B. Cl. (B♭)")
     (midiInstrument . "clarinet")
     (instrumentCueName . "bass clarinet")))
 #`((staff-generator . ,staff-creator)
@@ -152,9 +153,9 @@
 
 \addCustomInstrumentDefinition #"horn"
 #(treble-clef-instrument
-  `((instrumentName . "Horn")
+  `((instrumentName . "Horn in F")
     (instrumentTransposition . ,(ly:make-pitch 0 4 0))
-    (shortInstrumentName . "Hn.")
+    (shortInstrumentName . "Hn. (F)")
     (midiInstrument . "french horn")
     (instrumentCueName . "horn")))
 #`((staff-generator . ,staff-creator)
@@ -293,6 +294,7 @@
 #`((staff-generator . ,piano-staff-creator)
    (key . piano)
    (left-definition . ((clef . "bass") (key . piano-left)))
+   (dynamic-definition . ((key . piano-dynamics)))
    (right-definition . ((clef . "treble") (key . piano-right))))
 
 \addCustomInstrumentDefinition #"harp"
@@ -303,4 +305,5 @@
 #`((staff-generator . ,piano-staff-creator)
    (key . harp)
    (left-definition . ((clef . "bass") (key . harp-left)))
+   (dynamic-definition . ((key . harp-dynamics)))
    (right-definition . ((clef . "treble") (key . harp-right))))
