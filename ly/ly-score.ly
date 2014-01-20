@@ -2,12 +2,12 @@
 
 \version "2.16.0"
 \include "articulate.ly"
-;;
-;; Fix Issue 9:
-;;	Ensure midi playback is always at concert pitch
-;;	whatever the setting of #include-midi? and
-;;	transpose? parameters to the ly-score:process call.
-;;
+%
+% Fix Issue 9:
+%	Ensure midi playback is always at concert pitch
+%	whatever the setting of #include-midi? and
+%	transpose? parameters to the ly-score:process call.
+%
 #(use-modules (ice-9 format))
 #(use-modules (srfi srfi-1))
 
@@ -351,7 +351,7 @@ noPartBreak = \tag #'part {\noPageBreak}
 	       score-book
 	       (ly-score:make-layout-score
                 (car el) (cadr el) instruments #t transpose? score-layout include-midi?))
-              (if (include-midi?)
+              (if (eqv? include-midi? #t)
                   (ly:book-add-score!
                    score-book
                    (ly-score:make-audio-score (car el) (cadr el) instruments #t )))
